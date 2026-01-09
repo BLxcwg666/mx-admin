@@ -26,7 +26,7 @@ type FileType = 'file' | 'icon' | 'photo' | 'avatar'
 
 export default defineComponent({
   setup() {
-    const type = ref<FileType>('photo')
+    const type = ref<FileType>('icon')
 
     const list = ref([] as { url: string; name: string }[])
 

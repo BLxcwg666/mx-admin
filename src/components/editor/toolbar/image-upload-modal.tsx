@@ -31,6 +31,7 @@ export const ImageUploadModal = defineComponent({
     const url = ref('')
     const uploading = ref(false)
     const uploadedFileName = ref('')
+    const uploadedFileStorage = ref<'local' | 's3'>('local')
     const isUrlLocked = ref(false)
 
     const resetState = () => {
@@ -38,6 +39,7 @@ export const ImageUploadModal = defineComponent({
       url.value = ''
       uploading.value = false
       uploadedFileName.value = ''
+      uploadedFileStorage.value = 'local'
       isUrlLocked.value = false
     }
 
@@ -46,17 +48,28 @@ export const ImageUploadModal = defineComponent({
       (newShow, oldShow) => {
         if (!newShow && oldShow) {
           if (uploadedFileName.value && url.value) {
-            deleteUploadedFile(uploadedFileName.value)
+            deleteUploadedFile(
+              uploadedFileName.value,
+              uploadedFileStorage.value,
+            )
           }
           resetState()
         }
       },
     )
 
-    const deleteUploadedFile = async (filename: string) => {
+    const deleteUploadedFile = async (
+      filename: string,
+      storage: 'local' | 's3',
+    ) => {
       try {
         const type = 'photo'
-        await RESTManager.api.objects(type, filename).delete()
+        await RESTManager.api.objects(type, filename).delete({
+          params: {
+            storage,
+            url: storage === 's3' ? url.value : undefined,
+          },
+        })
       } catch (error) {
         console.error('Failed to delete uploaded file:', error)
       }
@@ -116,6 +129,7 @@ export const ImageUploadModal = defineComponent({
 
           url.value = response.url
           uploadedFileName.value = response.name
+          uploadedFileStorage.value = response.storage
           isUrlLocked.value = true
 
           message.success(
@@ -161,10 +175,6 @@ export const ImageUploadModal = defineComponent({
         preset="card"
         title="插入图片"
         style={{ width: '500px' }}
-        segmented={{
-          content: 'soft',
-          footer: 'soft',
-        }}
       >
         {{
           default: () => (
@@ -199,13 +209,6 @@ export const ImageUploadModal = defineComponent({
                   clearable
                   disabled={isUrlLocked.value}
                 />
-                {isUrlLocked.value && uploadedFileName.value && (
-                  <div class="mt-1 text-xs text-gray-500">
-                    <span class="text-primary font-mono">
-                      {uploadedFileName.value}
-                    </span>
-                  </div>
-                )}
               </div>
             </NSpace>
           ),
