@@ -137,7 +137,7 @@ export const commands = {
     const selectedText = state.sliceDoc(from, to)
 
     const text = selectedText || '链接文本'
-    const insert = `[${text}](https://)`
+    const insert = `[${text}]()`
 
     view.dispatch({
       changes: { from, to, insert },
