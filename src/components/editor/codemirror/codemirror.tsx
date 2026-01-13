@@ -5,7 +5,6 @@ import type { PropType } from 'vue'
 
 import { useSaveConfirm } from '~/hooks/use-save-confirm'
 
-import { MarkdownToolbar } from '../toolbar'
 import styles from '../universal/editor.module.css'
 import { editorBaseProps } from '../universal/props'
 

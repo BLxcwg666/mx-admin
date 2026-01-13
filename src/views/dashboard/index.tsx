@@ -291,7 +291,10 @@ export const DashBoardView = defineComponent({
           {
             name: '管理',
             onClick() {
-              router.push({ name: RouteName.ListShortHand, query: { page: 1 } })
+              router.push({
+                name: RouteName.ListShortHand,
+                query: { page: 1 },
+              })
             },
           },
         ],
