@@ -10,6 +10,8 @@ import { editorBaseProps } from '../universal/props'
 
 import './codemirror.css'
 
+import { MarkdownToolbar } from '~/components/editor/toolbar'
+
 import { useCodeMirror } from './use-codemirror'
 
 export const CodemirrorEditor = defineComponent({
