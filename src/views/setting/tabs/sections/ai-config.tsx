@@ -205,7 +205,8 @@ const AIProviderCard = defineComponent({
       () =>
         localProvider.value.type === AIProviderType.OpenAICompatible ||
         localProvider.value.type === AIProviderType.OpenAI ||
-        localProvider.value.type === AIProviderType.OpenRouter,
+        localProvider.value.type === AIProviderType.OpenRouter ||
+        localProvider.value.type === AIProviderType.Anthropic,
     )
 
     // 卡片标题：优先显示名称，否则根据类型显示
@@ -277,7 +278,10 @@ const AIProviderCard = defineComponent({
                         ? '必填，如 https://api.deepseek.com'
                         : localProvider.value.type === AIProviderType.OpenRouter
                           ? '可选，默认 https://openrouter.ai/api/v1'
-                          : '可选，留空使用默认'
+                          : localProvider.value.type ===
+                              AIProviderType.Anthropic
+                            ? '可选，用于 one-api/new-api 等聚合服务'
+                            : '可选，留空使用默认'
                     }
                   />
                 </NFormItem>
