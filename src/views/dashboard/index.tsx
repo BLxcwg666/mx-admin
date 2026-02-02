@@ -103,7 +103,7 @@ export const DashBoardView = defineComponent({
     })
     const fetchSiteWordCount = async () => {
       return await RESTManager.api.aggregate.count_site_words.get<{
-        data: { length: number }
+        count: number
       }>()
     }
 
@@ -124,7 +124,7 @@ export const DashBoardView = defineComponent({
         fetchReadAndLikeCounts(),
         fetchSiteLikeCount(),
       ])
-      siteWordCount.value = c.data.length
+      siteWordCount.value = c.count
 
       readAndLikeCounts.value = {
         totalLikes: rl.totalLikes,
