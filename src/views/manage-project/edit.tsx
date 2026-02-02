@@ -221,6 +221,7 @@ const EditProjectView = defineComponent({
                 onChange={(v) => {
                   project.text = v
                 }}
+                onSave={handleSubmit}
                 text={project.text}
               />
             </div>

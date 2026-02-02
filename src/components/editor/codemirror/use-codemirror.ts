@@ -19,6 +19,7 @@ import {
   lineNumbers,
 } from '@codemirror/view'
 
+import { slashMenuExtension } from '../slash-menu'
 import { createToolbarKeymapExtension } from '../toolbar'
 import { useEditorConfig } from '../universal/use-editor-setting'
 import { codemirrorReconfigureExtension } from './extension'
@@ -30,6 +31,7 @@ import { useCodeMirrorAutoToggleTheme } from './use-auto-theme'
 interface Props {
   initialDoc: string
   onChange?: (state: EditorState) => void
+  onSave?: () => void
 }
 
 export const useCodeMirror = <T extends Element>(
@@ -38,7 +40,7 @@ export const useCodeMirror = <T extends Element>(
   const refContainer = ref<T>()
   const editorView = ref<EditorView>()
   const { general } = useEditorConfig()
-  const { onChange } = props
+  const { onChange, onSave } = props
 
   const format = () => {
     const ev = editorView.value
@@ -96,7 +98,8 @@ export const useCodeMirror = <T extends Element>(
           {
             key: 'Mod-s',
             run() {
-              return false
+              onSave?.()
+              return true
             },
             preventDefault: true,
           },
@@ -133,6 +136,8 @@ export const useCodeMirror = <T extends Element>(
         ...codemirrorReconfigureExtension,
 
         createPasteImageExtension(),
+
+        ...slashMenuExtension,
 
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {

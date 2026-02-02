@@ -325,6 +325,7 @@ const NoteWriteView = defineComponent(() => {
           onChange={(v) => {
             data.text = v
           }}
+          onSave={handleSubmit}
           text={data.text}
         />
       </PreviewSplitter>

@@ -264,3 +264,39 @@ export const commands = {
 }
 
 export type CommandName = keyof typeof commands
+
+/**
+ * Set heading level directly (used by slash menu)
+ */
+export function setHeadingLevel(view: EditorView, level: number): boolean {
+  const { state } = view
+  const line = state.doc.lineAt(state.selection.main.from)
+  const lineText = line.text
+
+  const match = lineText.match(/^(#{1,6})\s/)
+  const newPrefix = `${'#'.repeat(level)} `
+
+  if (match) {
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.from + match[0].length,
+        insert: newPrefix,
+      },
+    })
+  } else {
+    const trimmedText = lineText.trimStart()
+    const leadingSpaces = lineText.length - trimmedText.length
+
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.from + leadingSpaces,
+        insert: newPrefix,
+      },
+    })
+  }
+
+  view.focus()
+  return true
+}

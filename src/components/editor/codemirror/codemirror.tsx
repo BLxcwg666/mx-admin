@@ -10,6 +10,7 @@ import { editorBaseProps } from '../universal/props'
 
 import './codemirror.css'
 
+import { SlashMenu } from '~/components/editor/slash-menu'
 import { MarkdownToolbar } from '~/components/editor/toolbar'
 
 import { useCodeMirror } from './use-codemirror'
@@ -33,6 +34,7 @@ export const CodemirrorEditor = defineComponent({
         props.onChange(state.doc.toString())
         props.onStateChange?.(state)
       },
+      onSave: props.onSave,
     })
 
     watch(
@@ -77,6 +79,7 @@ export const CodemirrorEditor = defineComponent({
           ]}
           ref={refContainer}
         />
+        <SlashMenu editorView={editorView.value} />
       </div>
     )
   },

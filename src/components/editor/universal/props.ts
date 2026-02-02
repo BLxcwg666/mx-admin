@@ -9,6 +9,13 @@ export const editorBaseProps = {
     type: Function as PropType<(value: string) => void>,
     required: true,
   },
+  /**
+   * Callback when Ctrl+S / Cmd+S is pressed
+   */
+  onSave: {
+    type: Function as PropType<() => void>,
+    required: false,
+  },
 
   unSaveConfirm: {
     type: Boolean,
