@@ -55,6 +55,7 @@ import Clock from '@vicons/tabler/es/Clock'
 import Copy from '@vicons/tabler/es/Copy'
 import ExternalLink from '@vicons/tabler/es/ExternalLink'
 import Template from '@vicons/tabler/es/Layout2'
+import Mail from '@vicons/tabler/es/Mail'
 import Log from '@vicons/tabler/es/News'
 import Pencil from '@vicons/tabler/es/Pencil'
 import Settings from '@vicons/tabler/es/Settings'
@@ -114,6 +115,7 @@ export { Search24Regular as SearchIcon }
 export { Location24Regular as LocationIcon }
 export { ExternalLink as ExternalLinkIcon }
 export { Settings as SettingsIcon }
+export { Mail as MailIcon }
 export { FullscreenExitOutlined }
 export { Book as BookIcon }
 export { Bookmark as BookmarkIcon }

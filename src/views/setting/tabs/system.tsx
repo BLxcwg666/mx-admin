@@ -1,5 +1,11 @@
 import { cloneDeep, isEmpty } from 'es-toolkit/compat'
-import { NButton, NColorPicker, NFormItem, useThemeVars } from 'naive-ui'
+import {
+  NButton,
+  NColorPicker,
+  NFormItem,
+  NSpace,
+  useThemeVars,
+} from 'naive-ui'
 import {
   defineComponent,
   onBeforeMount,
@@ -14,7 +20,7 @@ import type { FormDSL } from '~/components/config-form/types'
 
 import { HeaderActionButton } from '~/components/button/rounded-button'
 import { ConfigForm } from '~/components/config-form'
-import { CheckCircleOutlinedIcon } from '~/components/icons'
+import { CheckCircleOutlinedIcon, MailIcon } from '~/components/icons'
 import { useLayout } from '~/layouts/content'
 import { deepDiff, RESTManager } from '~/utils'
 import { colorRef, defineColors } from '~/utils/color'
@@ -125,6 +131,27 @@ export const TabSystem = defineComponent(() => {
     Object.assign(configs, response)
   }
 
+  // 测试邮件发送
+  const isSendingTestEmail = ref(false)
+  const handleSendTestEmail = async () => {
+    if (isSendingTestEmail.value) return
+    isSendingTestEmail.value = true
+    try {
+      const result = await RESTManager.api.health.email.test.get<{
+        message?: string
+      }>()
+      if (result.message) {
+        message.error(`发送失败: ${result.message}`)
+      } else {
+        message.success('测试邮件已发送，请检查收件箱')
+      }
+    } catch (error: any) {
+      message.error(error?.message || '发送测试邮件失败')
+    } finally {
+      isSendingTestEmail.value = false
+    }
+  }
+
   return () => (
     <Fragment>
       <div class="pt-4" />
@@ -147,6 +174,23 @@ export const TabSystem = defineComponent(() => {
             adminExtra: () => (
               <NFormItem label={'主题色'}>
                 <AppColorSetter />
+              </NFormItem>
+            ),
+            mailOptions: () => (
+              <NFormItem label={'测试'}>
+                <NSpace align="center">
+                  <NButton
+                    size="small"
+                    secondary
+                    loading={isSendingTestEmail.value}
+                    onClick={handleSendTestEmail}
+                  >
+                    {{
+                      icon: () => <MailIcon />,
+                      default: () => '发送测试邮件',
+                    }}
+                  </NButton>
+                </NSpace>
               </NFormItem>
             ),
           }}
