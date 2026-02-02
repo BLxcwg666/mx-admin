@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ContentLayout } from '~/layouts/content'
 
 import { TabAuth } from './tabs/auth'
+import { TabMetaPresets } from './tabs/meta-presets'
 import { TabSecurity } from './tabs/security'
 import { TabSystem } from './tabs/system'
 import { TabUser } from './tabs/user'
@@ -14,6 +15,7 @@ enum SettingTab {
   System = 'system',
   Security = 'security',
   Auth = 'auth',
+  MetaPresets = 'meta-presets',
 }
 export default defineComponent({
   setup() {
@@ -53,6 +55,9 @@ export default defineComponent({
           </NTabPane>
           <NTabPane tab="登入方式" name={SettingTab.Auth}>
             <TabAuth />
+          </NTabPane>
+          <NTabPane tab="Meta 预设" name={SettingTab.MetaPresets}>
+            <TabMetaPresets />
           </NTabPane>
         </NTabs>
       </ContentLayout>

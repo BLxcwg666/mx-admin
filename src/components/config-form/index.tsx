@@ -130,7 +130,10 @@ export const ConfigForm = defineComponent({
         <>
           <NCollapse
             accordion
-            defaultExpandedNames={expandedNames.value}
+            expandedNames={expandedNames.value}
+            onUpdateExpandedNames={(names) => {
+              expandedNames.value = names as string[]
+            }}
             displayDirective="if"
           >
             {schema.groups.map((group) => (
