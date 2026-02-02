@@ -2,12 +2,18 @@ import { isString } from 'es-toolkit/compat'
 import { NFormItem, NInputNumber, useMessage } from 'naive-ui'
 import { computed, defineComponent, onMounted, reactive, ref, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { DraftModel } from '~/models/draft'
 import type { PageModel } from '~/models/page'
 import type { WriteBaseType } from '~/shared/types/base'
 
 import { Icon } from '@vicons/utils'
 
 import { HeaderActionButton } from '~/components/button/rounded-button'
+import {
+  DraftListModal,
+  DraftRecoveryModal,
+  DraftSaveIndicator,
+} from '~/components/draft'
 import { TextBaseDrawer } from '~/components/drawer/text-base-drawer'
 import { Editor } from '~/components/editor/universal'
 import { SlidersHIcon, TelegramPlaneIcon } from '~/components/icons'
@@ -20,7 +26,9 @@ import {
 } from '~/components/special-button/preview'
 import { WEB_URL } from '~/constants/env'
 import { useParsePayloadIntoData } from '~/hooks/use-parse-payload'
+import { useWriteDraft } from '~/hooks/use-write-draft'
 import { ContentLayout } from '~/layouts/content'
+import { DraftRefType } from '~/models/draft'
 import { RouteName } from '~/router/name'
 import { RESTManager } from '~/utils/rest'
 
@@ -50,16 +58,67 @@ const PageWriteView = defineComponent(() => {
     // biome-ignore lint/correctness/useHookAtTopLevel: <explanation>
     useParsePayloadIntoData(data)(payload)
   const data = reactive<PageReactiveType>(resetReactive())
-  const id = computed(() => route.query.id)
+
+  const applyDraft = (
+    draft: DraftModel,
+    _data: PageReactiveType,
+    isPartial?: boolean,
+  ) => {
+    if (!isPartial) {
+      _data.id = draft.refId
+    }
+    _data.title = draft.title
+    _data.text = draft.text
+    if (draft.images) {
+      _data.images = draft.images
+    }
+    if (draft.meta) {
+      _data.meta = draft.meta
+    }
+    if (draft.typeSpecificData) {
+      const specific = draft.typeSpecificData as any
+      if (specific.slug) _data.slug = specific.slug
+      if (specific.subtitle) _data.subtitle = specific.subtitle
+      if (typeof specific.order === 'number') _data.order = specific.order
+    }
+  }
+
+  const loadPublished = async (id: string) => {
+    const payload = (await RESTManager.api.pages(id).get({})) as any
+    parsePayloadIntoReactiveData(payload.data as PageModel)
+  }
+
+  const {
+    id: routeId,
+    draftInitialized,
+    serverDraft,
+    isEditing,
+    initialize: initializeDraft,
+    recoveryModal,
+    listModal,
+  } = useWriteDraft(data, {
+    refType: DraftRefType.Page,
+    interval: 10000,
+    getData: () => ({
+      title: data.title,
+      text: data.text,
+      images: data.images,
+      meta: data.meta,
+      typeSpecificData: {
+        slug: data.slug,
+        subtitle: data.subtitle,
+        order: data.order,
+      },
+    }),
+    applyDraft,
+    loadPublished,
+    draftLabel: '页面',
+  })
+
+  const loading = computed(() => !draftInitialized.value)
 
   onMounted(async () => {
-    const $id = id.value
-    if ($id && typeof $id == 'string') {
-      const payload = (await RESTManager.api.pages($id).get({})) as any
-
-      const data = payload.data
-      parsePayloadIntoReactiveData(data as PageModel)
-    }
+    await initializeDraft()
   })
 
   const drawerShow = ref(false)
@@ -87,12 +146,12 @@ const PageWriteView = defineComponent(() => {
         throw error
       }
     }
-    if (id.value) {
+    if (routeId.value) {
       // update
-      if (!isString(id.value)) {
+      if (!isString(routeId.value)) {
         return
       }
-      const $id = id.value as string
+      const $id = routeId.value as string
       await RESTManager.api.pages($id).put({
         data: parseDataToPayload(),
       })
@@ -105,6 +164,8 @@ const PageWriteView = defineComponent(() => {
       message.success('发布成功')
     }
 
+    // Delete draft after successful publish
+    await serverDraft.deleteDraft()
     router.push({ name: RouteName.ListPage, hash: '|publish' })
   }
 
@@ -113,6 +174,11 @@ const PageWriteView = defineComponent(() => {
       headerClass="pt-1"
       actionsElement={
         <>
+          <DraftSaveIndicator
+            isSaving={serverDraft.isSaving}
+            lastSavedTime={serverDraft.lastSavedTime}
+          />
+
           <ParseContentButton
             data={data}
             onHandleYamlParsedMeta={(meta) => {
@@ -172,7 +238,7 @@ const PageWriteView = defineComponent(() => {
       <PreviewSplitter>
         <Editor
           key={data.id}
-          loading={!!(id.value && typeof data.id == 'undefined')}
+          loading={loading.value}
           onChange={(v) => {
             data.text = v
           }}
@@ -200,7 +266,25 @@ const PageWriteView = defineComponent(() => {
         </NFormItem>
       </TextBaseDrawer>
 
-      {/* Drawer END */}
+      {/* Draft Modals */}
+      {recoveryModal.draft.value && recoveryModal.publishedContent.value && (
+        <DraftRecoveryModal
+          show={recoveryModal.show.value}
+          draft={recoveryModal.draft.value}
+          publishedContent={recoveryModal.publishedContent.value}
+          onClose={recoveryModal.onClose}
+          onRecover={recoveryModal.onRecover}
+        />
+      )}
+
+      <DraftListModal
+        show={listModal.show.value}
+        drafts={listModal.drafts.value}
+        draftLabel={listModal.draftLabel}
+        onClose={listModal.onClose}
+        onSelect={listModal.onSelect}
+        onCreate={listModal.onCreate}
+      />
     </ContentLayout>
   )
 })

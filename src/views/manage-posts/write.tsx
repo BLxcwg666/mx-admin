@@ -8,9 +8,10 @@ import {
   NSwitch,
   useMessage,
 } from 'naive-ui'
-import { computed, defineComponent, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineComponent, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { CategoryModel, TagModel } from '~/models/category'
+import type { DraftModel } from '~/models/draft'
 import type { PostModel } from '~/models/post'
 import type { WriteBaseType } from '~/shared/types/base'
 import type { SelectMixedOption } from 'naive-ui/lib/select/src/interface'
@@ -19,6 +20,11 @@ import { Icon } from '@vicons/utils'
 
 import { AiHelperButton } from '~/components/ai/ai-helper'
 import { HeaderActionButton } from '~/components/button/rounded-button'
+import {
+  DraftListModal,
+  DraftRecoveryModal,
+  DraftSaveIndicator,
+} from '~/components/draft'
 import { TextBaseDrawer } from '~/components/drawer/text-base-drawer'
 import { Editor } from '~/components/editor/universal'
 import { SlidersHIcon, TelegramPlaneIcon } from '~/components/icons'
@@ -32,10 +38,11 @@ import {
 } from '~/components/special-button/preview'
 import { CrossBellConnectorIndirector } from '~/components/xlog-connect'
 import { WEB_URL } from '~/constants/env'
-import { useAutoSave, useAutoSaveInEditor } from '~/hooks/use-auto-save'
 import { useParsePayloadIntoData } from '~/hooks/use-parse-payload'
 import { useStoreRef } from '~/hooks/use-store-ref'
+import { useWriteDraft } from '~/hooks/use-write-draft'
 import { ContentLayout } from '~/layouts/content'
+import { DraftRefType } from '~/models/draft'
 import { RouteName } from '~/router/name'
 import { CategoryStore } from '~/stores/category'
 import { RESTManager } from '~/utils/rest'
@@ -88,30 +95,6 @@ const PostWriteView = defineComponent(() => {
   const data = reactive<PostReactiveType>(resetReactive())
 
   const parsePayloadIntoReactiveData = useParsePayloadIntoData(data)
-  const id = computed(() => route.query.id)
-
-  const loading = computed(() => !!(id.value && typeof data.id === 'undefined'))
-  const autoSaveHook = useAutoSave(`post-${id.value || 'new'}`, 3000, () => ({
-    text: data.text,
-    title: data.title,
-  }))
-
-  const autoSaveInEditor = useAutoSaveInEditor(data, autoSaveHook)
-
-  const disposer = watch(
-    () => loading.value,
-    (loading) => {
-      if (loading) {
-        return
-      }
-
-      autoSaveInEditor.enable()
-      requestAnimationFrame(() => {
-        disposer()
-      })
-    },
-    { immediate: true },
-  )
 
   // const currentSelectCategoryId = ref('')
   const category = computed(
@@ -121,17 +104,80 @@ const PostWriteView = defineComponent(() => {
       ({} as CategoryModel),
   )
 
-  onMounted(async () => {
-    const $id = id.value
-    if ($id && typeof $id == 'string') {
-      const payload = (await RESTManager.api.posts($id).get()) as any
-
-      // HACK: transform
-      payload.data.relatedId = payload.data.related?.map((r: any) => r.id) || []
-      postListState.append(payload.data.related)
-
-      parsePayloadIntoReactiveData(payload.data as PostModel)
+  const applyDraft = (
+    draft: DraftModel,
+    _data: PostReactiveType,
+    isPartial?: boolean,
+  ) => {
+    if (!isPartial) {
+      _data.id = draft.refId
     }
+    _data.title = draft.title
+    _data.text = draft.text
+    if (draft.images) {
+      _data.images = draft.images
+    }
+    if (draft.meta) {
+      _data.meta = draft.meta
+    }
+    if (draft.typeSpecificData) {
+      const specific = draft.typeSpecificData as any
+      if (specific.slug) _data.slug = specific.slug
+      if (specific.categoryId) _data.categoryId = specific.categoryId
+      if (specific.tags) _data.tags = specific.tags
+      if (specific.summary) _data.summary = specific.summary
+      if (typeof specific.copyright === 'boolean')
+        _data.copyright = specific.copyright
+      if (typeof specific.pin === 'boolean') _data.pin = specific.pin
+      if (typeof specific.pinOrder === 'number')
+        _data.pinOrder = specific.pinOrder
+      if (specific.relatedId) _data.relatedId = specific.relatedId
+    }
+  }
+
+  const loadPublished = async (id: string) => {
+    const payload = (await RESTManager.api.posts(id).get()) as any
+    payload.data.relatedId = payload.data.related?.map((r: any) => r.id) || []
+    postListState.append(payload.data.related)
+    parsePayloadIntoReactiveData(payload.data as PostModel)
+  }
+
+  const {
+    id: routeId,
+    draftInitialized,
+    serverDraft,
+    isEditing,
+    initialize: initializeDraft,
+    recoveryModal,
+    listModal,
+  } = useWriteDraft(data, {
+    refType: DraftRefType.Post,
+    interval: 10000,
+    getData: () => ({
+      title: data.title,
+      text: data.text,
+      images: data.images,
+      meta: data.meta,
+      typeSpecificData: {
+        slug: data.slug,
+        categoryId: data.categoryId,
+        tags: data.tags,
+        summary: data.summary,
+        copyright: data.copyright,
+        pin: data.pin,
+        pinOrder: data.pinOrder,
+        relatedId: data.relatedId,
+      },
+    }),
+    applyDraft,
+    loadPublished,
+    draftLabel: '文章',
+  })
+
+  const loading = computed(() => !draftInitialized.value)
+
+  onMounted(async () => {
+    await initializeDraft()
   })
 
   const drawerShow = ref(false)
@@ -151,12 +197,12 @@ const PostWriteView = defineComponent(() => {
       '~/components/xlog-connect/class'
     )
 
-    if (id.value) {
+    if (routeId.value) {
       // update
-      if (!isString(id.value)) {
+      if (!isString(routeId.value)) {
         return
       }
-      const $id = id.value as string
+      const $id = routeId.value as string
       const response = await RESTManager.api.posts($id).put<PostModel>({
         data: payload,
       })
@@ -171,8 +217,9 @@ const PostWriteView = defineComponent(() => {
       await CrossBellConnector.createOrUpdate(response)
     }
 
+    // Delete draft after successful publish
+    await serverDraft.deleteDraft()
     await router.push({ name: RouteName.ViewPost, hash: '|publish' })
-    autoSaveInEditor.clearSaved()
   }
   const handleOpenDrawer = () => {
     drawerShow.value = true
@@ -198,10 +245,15 @@ const PostWriteView = defineComponent(() => {
 
   return () => (
     <ContentLayout
-      title={id.value ? '修改文章' : '撰写新文章'}
+      title={isEditing.value ? '修改文章' : '撰写新文章'}
       headerClass="pt-1"
       actionsElement={
         <>
+          <DraftSaveIndicator
+            isSaving={serverDraft.isSaving}
+            lastSavedTime={serverDraft.lastSavedTime}
+          />
+
           <ParseContentButton
             data={data}
             onHandleYamlParsedMeta={(meta) => {
@@ -424,6 +476,26 @@ const PostWriteView = defineComponent(() => {
           </NSwitch>
         </NFormItem>
       </TextBaseDrawer>
+
+      {/* Draft Modals */}
+      {recoveryModal.draft.value && recoveryModal.publishedContent.value && (
+        <DraftRecoveryModal
+          show={recoveryModal.show.value}
+          draft={recoveryModal.draft.value}
+          publishedContent={recoveryModal.publishedContent.value}
+          onClose={recoveryModal.onClose}
+          onRecover={recoveryModal.onRecover}
+        />
+      )}
+
+      <DraftListModal
+        show={listModal.show.value}
+        drafts={listModal.drafts.value}
+        draftLabel={listModal.draftLabel}
+        onClose={listModal.onClose}
+        onSelect={listModal.onSelect}
+        onCreate={listModal.onCreate}
+      />
     </ContentLayout>
   )
 })

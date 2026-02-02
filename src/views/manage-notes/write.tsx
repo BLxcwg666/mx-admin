@@ -19,10 +19,10 @@ import {
   reactive,
   ref,
   toRaw,
-  watch,
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { PaginateResult } from '@mx-space/api-client'
+import type { DraftModel } from '~/models/draft'
 import type { Coordinate, NoteModel } from '~/models/note'
 import type { TopicModel } from '~/models/topic'
 import type { WriteBaseType } from '~/shared/types/base'
@@ -31,6 +31,11 @@ import { Icon } from '@vicons/utils'
 
 import { AiHelperButton } from '~/components/ai/ai-helper'
 import { HeaderActionButton } from '~/components/button/rounded-button'
+import {
+  DraftListModal,
+  DraftRecoveryModal,
+  DraftSaveIndicator,
+} from '~/components/draft'
 import { TextBaseDrawer } from '~/components/drawer/text-base-drawer'
 import { Editor } from '~/components/editor/universal'
 import { SlidersHIcon, TelegramPlaneIcon } from '~/components/icons'
@@ -45,9 +50,10 @@ import {
 } from '~/components/special-button/preview'
 import { WEB_URL } from '~/constants/env'
 import { MOOD_SET, WEATHER_SET } from '~/constants/note'
-import { useAutoSave, useAutoSaveInEditor } from '~/hooks/use-auto-save'
 import { useParsePayloadIntoData } from '~/hooks/use-parse-payload'
+import { useWriteDraft } from '~/hooks/use-write-draft'
 import { ContentLayout } from '~/layouts/content'
+import { DraftRefType } from '~/models/draft'
 import { RouteName } from '~/router/name'
 import { RESTManager } from '~/utils/rest'
 import { getDayOfYear } from '~/utils/time'
@@ -99,10 +105,10 @@ const NoteWriteView = defineComponent(() => {
   const route = useRoute()
 
   const defaultTitle = ref('写点什么呢')
-  const id = computed(() => route.query.id)
 
   onBeforeMount(() => {
-    if (id.value) {
+    const $id = route.query.id
+    if ($id) {
       return
     }
     const currentTime = new Date()
@@ -139,55 +145,100 @@ const NoteWriteView = defineComponent(() => {
   const data = reactive<NoteReactiveType>(resetReactive())
   const nid = ref<number>()
 
-  const loading = computed(() => !!(id.value && typeof data.id === 'undefined'))
+  const applyDraft = (
+    draft: DraftModel,
+    _data: NoteReactiveType,
+    isPartial?: boolean,
+  ) => {
+    if (!isPartial) {
+      _data.id = draft.refId
+    }
+    _data.title = draft.title
+    _data.text = draft.text
+    if (draft.images) {
+      _data.images = draft.images
+    }
+    if (draft.meta) {
+      _data.meta = draft.meta
+    }
+    if (draft.typeSpecificData) {
+      const specific = draft.typeSpecificData as any
+      if (specific.mood) _data.mood = specific.mood
+      if (specific.weather) _data.weather = specific.weather
+      if (typeof specific.password === 'string' || specific.password === null)
+        _data.password = specific.password
+      if (specific.publicAt) _data.publicAt = new Date(specific.publicAt)
+      if (typeof specific.bookmark === 'boolean')
+        _data.bookmark = specific.bookmark
+      if (specific.location) _data.location = specific.location
+      if (specific.coordinates) _data.coordinates = specific.coordinates
+      if (specific.topicId !== undefined) _data.topicId = specific.topicId
+    }
+  }
 
-  const autoSaveHook = useAutoSave(`note-${id.value || 'new'}`, 3000, () => ({
-    text: data.text,
-    title: data.title,
-  }))
+  const loadPublished = async (id: string) => {
+    const payload = (await RESTManager.api.notes(id).get({
+      params: { single: true },
+    })) as any
 
-  const autoSaveInEditor = useAutoSaveInEditor(data, autoSaveHook)
+    const noteData = payload.data
 
-  const disposer = watch(
-    () => loading.value,
-    (loading) => {
-      if (loading) {
-        return
-      }
+    if (noteData.topic) {
+      topics.value.push(noteData.topic)
+    }
 
-      autoSaveInEditor.enable()
-      requestAnimationFrame(() => {
-        disposer()
-      })
+    nid.value = noteData.nid
+    noteData.secret = noteData.secret ? new Date(noteData.secret) : null
+
+    const created = new Date(noteData.created)
+    defaultTitle.value = `记录 ${created.getFullYear()} 年第 ${getDayOfYear(
+      created,
+    )} 天`
+
+    parsePayloadIntoReactiveData(noteData as NoteModel)
+  }
+
+  const {
+    id: routeId,
+    draftInitialized,
+    serverDraft,
+    isEditing,
+    initialize: initializeDraft,
+    recoveryModal,
+    listModal,
+  } = useWriteDraft(data, {
+    refType: DraftRefType.Note,
+    interval: 10000,
+    getData: () => ({
+      title: data.title,
+      text: data.text,
+      images: data.images,
+      meta: data.meta,
+      typeSpecificData: {
+        mood: data.mood,
+        weather: data.weather,
+        password: data.password,
+        publicAt: data.publicAt ? data.publicAt.toISOString() : null,
+        bookmark: data.bookmark,
+        location: data.location,
+        coordinates: data.coordinates,
+        topicId: data.topicId,
+      },
+    }),
+    applyDraft,
+    loadPublished,
+    draftLabel: '日记',
+    onTitleFallback: (title) => {
+      defaultTitle.value = title
     },
-    { immediate: true },
-  )
+  })
+
+  const loading = computed(() => !draftInitialized.value)
+
+  const { fetchTopic, topics } = useNoteTopic()
 
   onMounted(async () => {
-    const $id = id.value
-    if ($id && typeof $id == 'string') {
-      const payload = (await RESTManager.api.notes($id).get({
-        params: {
-          single: true,
-        },
-      })) as any
-
-      const data = payload.data
-
-      if (data.topic) {
-        topics.value.push(data.topic)
-      }
-
-      nid.value = data.nid
-      data.secret = data.secret ? new Date(data.secret) : null
-
-      const created = new Date((data as any).created)
-      defaultTitle.value = `记录 ${created.getFullYear()} 年第 ${getDayOfYear(
-        created,
-      )} 天`
-
-      parsePayloadIntoReactiveData(data as NoteModel)
-    }
+    await initializeDraft()
   })
 
   const drawerShow = ref(false)
@@ -224,12 +275,12 @@ const NoteWriteView = defineComponent(() => {
       '~/components/xlog-connect/class'
     )
 
-    if (id.value) {
+    if (routeId.value) {
       // update
-      if (!isString(id.value)) {
+      if (!isString(routeId.value)) {
         return
       }
-      const $id = id.value as string
+      const $id = routeId.value as string
       const response = await RESTManager.api.notes($id).put<NoteModel>({
         data: parseDataToPayload(),
       })
@@ -237,20 +288,20 @@ const NoteWriteView = defineComponent(() => {
 
       await CrossBellConnector.createOrUpdate(response)
     } else {
-      const data = parseDataToPayload()
+      const payload = parseDataToPayload()
       // create
       const response = await RESTManager.api.notes.post<NoteModel>({
-        data,
+        data: payload,
       })
       message.success('发布成功')
 
       await CrossBellConnector.createOrUpdate(response)
     }
 
+    // Delete draft after successful publish
+    await serverDraft.deleteDraft()
     await router.push({ name: RouteName.ViewNote, hash: '|publish' })
-    autoSaveInEditor.clearSaved()
   }
-  const { fetchTopic, topics } = useNoteTopic()
 
   return () => (
     <ContentLayout
@@ -258,6 +309,11 @@ const NoteWriteView = defineComponent(() => {
       headerClass="pt-1"
       actionsElement={
         <>
+          <DraftSaveIndicator
+            isSaving={serverDraft.isSaving}
+            lastSavedTime={serverDraft.lastSavedTime}
+          />
+
           <ParseContentButton
             data={data}
             onHandleYamlParsedMeta={(meta) => {
@@ -533,7 +589,25 @@ const NoteWriteView = defineComponent(() => {
         </NFormItem>
       </TextBaseDrawer>
 
-      {/* Drawer END */}
+      {/* Draft Modals */}
+      {recoveryModal.draft.value && recoveryModal.publishedContent.value && (
+        <DraftRecoveryModal
+          show={recoveryModal.show.value}
+          draft={recoveryModal.draft.value}
+          publishedContent={recoveryModal.publishedContent.value}
+          onClose={recoveryModal.onClose}
+          onRecover={recoveryModal.onRecover}
+        />
+      )}
+
+      <DraftListModal
+        show={listModal.show.value}
+        drafts={listModal.drafts.value}
+        draftLabel={listModal.draftLabel}
+        onClose={listModal.onClose}
+        onSelect={listModal.onSelect}
+        onCreate={listModal.onCreate}
+      />
     </ContentLayout>
   )
 })
