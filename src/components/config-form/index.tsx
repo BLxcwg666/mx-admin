@@ -13,11 +13,14 @@ import {
   NSwitch,
   NText,
 } from 'naive-ui'
-import type { ComputedRef, InjectionKey, PropType, Ref, VNode } from 'vue'
+import type { PropType, Ref, VNode } from 'vue'
+import type { FormDSL, FormField } from './types'
 
 import { useStoreRef } from '~/hooks/use-store-ref'
 import { UIStore } from '~/stores/ui'
 import { uuid } from '~/utils'
+
+export * from './types'
 
 const NFormPrefixCls = 'mt-6'
 const NFormBaseProps = {
@@ -25,40 +28,66 @@ const NFormBaseProps = {
   labelPlacement: 'left',
   labelAlign: 'right',
   labelWidth: 150,
-
   autocomplete: 'do-not-autofill',
 }
 
-export const JSONSchemaFormInjectKey: InjectionKey<{
-  schema: KV
-  definitions: ComputedRef<Map<string, any>>
-  getKey: (key: string) => string
-}> = Symbol('JSONSchemaFormInject')
+/**
+ * Check if a field should be shown based on showWhen conditions.
+ */
+function shouldShowField(
+  field: FormField,
+  formData: Ref<any>,
+  sectionPrefix: string,
+): boolean {
+  const { showWhen } = field.ui
+  if (!showWhen) return true
+
+  for (const [key, expected] of Object.entries(showWhen)) {
+    const actualValue = get(formData.value, `${sectionPrefix}.${key}`)
+    if (Array.isArray(expected)) {
+      if (!expected.includes(actualValue)) return false
+    } else {
+      if (actualValue !== expected) return false
+    }
+  }
+  return true
+}
+
+/**
+ * New ConfigForm component that works with FormDSL format
+ * Renders groups as collapsible sections with Naive UI styling
+ */
 export const ConfigForm = defineComponent({
   props: {
     schema: {
-      type: Object as PropType<KV>,
+      type: Object as PropType<FormDSL>,
+      required: true,
+    },
+    initialValue: {
+      type: Object as PropType<Record<string, any>>,
       required: true,
     },
     onValueChange: {
       type: Function as PropType<(val: any) => any>,
       required: false,
     },
-    initialValue: {
-      type: Object as PropType<KV>,
-      required: true,
+    /**
+     * Custom slots for specific sections (by section key)
+     * Completely replaces the auto-generated form for that section
+     * e.g., { ai: () => <AIConfigSection /> }
+     */
+    sectionSlots: {
+      type: Object as PropType<Record<string, () => VNode>>,
+      default: () => ({}),
     },
-
-    getKey: {
-      type: Function as PropType<(key: string) => string>,
-      required: false,
-      default: (key: string) => key,
-    },
-
-    extendConfigView: {
-      type: Object as PropType<{
-        [key: string]: VNode
-      }>,
+    /**
+     * Append slots for specific sections (by section key)
+     * Adds content AFTER the auto-generated form for that section
+     * e.g., { adminExtra: () => <NFormItem label="主题色">...</NFormItem> }
+     */
+    appendSlots: {
+      type: Object as PropType<Record<string, () => VNode>>,
+      default: () => ({}),
     },
   },
 
@@ -69,32 +98,16 @@ export const ConfigForm = defineComponent({
       () => {
         props.onValueChange?.(formData.value)
       },
-      {
-        flush: 'post',
-      },
+      { flush: 'post' },
     )
 
-    const definitions = computed(() => props.schema.definitions)
-    const defintionMap = computed(
-      () => new Map(Object.entries(props.schema.definitions)),
-    )
-
-    provide(JSONSchemaFormInjectKey, {
-      schema: props.schema,
-      definitions: defintionMap,
-      getKey: props.getKey,
-    })
-
-    const definitionsKeys = computed(() => Object.keys(definitions.value))
-
-    const expandedNames = ref<string[]>([definitionsKeys.value[0]])
     const uiStore = useStoreRef(UIStore)
+    const formProps = reactive({ ...NFormBaseProps }) as any
 
-    const formProps = reactive(NFormBaseProps) as any
     watch(
       () => uiStore.viewport.value.mobile,
-      (n) => {
-        if (n) {
+      (isMobile) => {
+        if (isMobile) {
           formProps.labelPlacement = 'top'
           formProps.labelAlign = 'left'
         } else {
@@ -105,8 +118,14 @@ export const ConfigForm = defineComponent({
       { immediate: true },
     )
 
+    // First group expanded by default
+    const expandedNames = ref<string[]>(
+      props.schema.groups.length > 0 ? [props.schema.groups[0].key] : [],
+    )
+
     return () => {
-      const { schema } = props
+      const { schema, sectionSlots, appendSlots } = props
+
       return (
         <>
           <NCollapse
@@ -114,238 +133,245 @@ export const ConfigForm = defineComponent({
             defaultExpandedNames={expandedNames.value}
             displayDirective="if"
           >
-            {definitionsKeys.value.map((key) => {
-              const schema = definitions.value[key]
+            {schema.groups.map((group) => (
+              <NCollapseItem
+                key={group.key}
+                name={group.key}
+                title={group.title}
+              >
+                {{
+                  default: () => (
+                    <div class="space-y-6 pl-4">
+                      {group.sections
+                        .filter((section) => !section.hidden)
+                        .map((section) => {
+                          // Check if there's a custom slot that replaces this section
+                          const customSlot =
+                            sectionSlots[section.key] || slots[section.key]
+                          // Check if there's an append slot for after this section
+                          const appendSlot = appendSlots[section.key]
 
-              if (!schema.title) {
-                return null
-              }
+                          if (customSlot) {
+                            return (
+                              <div key={section.key}>
+                                {group.sections.length > 1 && (
+                                  <NText
+                                    class="mb-3 block text-sm font-medium"
+                                    depth={2}
+                                  >
+                                    {section.title}
+                                  </NText>
+                                )}
+                                <NForm {...formProps}>{customSlot()}</NForm>
+                              </div>
+                            )
+                          }
 
-              const uiOptions = schema?.['ui:options'] || {}
-
-              switch (uiOptions?.type) {
-                case 'hidden':
-                  return null
-              }
-
-              // If a slot is provided for this key, render only the slot (custom component)
-              const hasSlot = !!slots[key]
-
-              return (
-                <NCollapseItem
-                  title={schema.title}
-                  data-schema={JSON.stringify(schema)}
-                >
-                  <NForm {...formProps}>
-                    {hasSlot ? (
-                      // Custom component from slot replaces auto-generated form
-                      slots[key]?.()
-                    ) : (
-                      // Auto-generated form from schema
-                      <>
-                        <SchemaSection
-                          dataKey={props.getKey(key)}
-                          formData={formData}
-                          schema={schema}
-                          property={key}
-                        />
-                        {props.extendConfigView?.[key]}
-                      </>
-                    )}
-                  </NForm>
-                </NCollapseItem>
-              )
-            })}
+                          return (
+                            <div key={section.key}>
+                              {group.sections.length > 1 && (
+                                <NText
+                                  class="mb-3 block text-sm font-medium"
+                                  depth={2}
+                                >
+                                  {section.title}
+                                </NText>
+                              )}
+                              <NForm {...formProps}>
+                                <SectionFields
+                                  fields={section.fields}
+                                  formData={formData}
+                                  dataKeyPrefix={section.key}
+                                />
+                                {appendSlot?.()}
+                              </NForm>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  ),
+                  'header-extra': () => (
+                    <NText class="text-xs" depth={3}>
+                      {group.description}
+                    </NText>
+                  ),
+                }}
+              </NCollapseItem>
+            ))}
           </NCollapse>
-          {schema.ps.length ? (
-            <NSpace vertical>
-              {schema.ps.map((text) => {
-                return (
-                  <NText class="ml-4 mt-8 inline-block text-xs" depth={3}>
-                    {text}
-                  </NText>
-                )
-              })}
-            </NSpace>
-          ) : null}
         </>
       )
     }
   },
 })
 
-const SchemaSection = defineComponent({
+/**
+ * Renders fields for a section
+ */
+export const SectionFields = defineComponent({
   props: {
-    schema: {
-      type: Object as PropType<any>,
+    fields: {
+      type: Array as PropType<FormField[]>,
       required: true,
     },
     formData: {
       type: Object as PropType<Ref<any>>,
       required: true,
     },
-    dataKey: {
-      type: String as PropType<string>,
+    dataKeyPrefix: {
+      type: String,
       required: true,
-    },
-    property: {
-      type: String as PropType<string>,
     },
   },
   setup(props) {
-    const { definitions, getKey } = inject(JSONSchemaFormInjectKey, {} as any)
+    const uiStore = useStoreRef(UIStore)
+    const gridCols = computed(() => (uiStore.viewport.value.mobile ? 1 : 2))
 
     return () => {
-      const { schema, formData, dataKey: key, property: _property } = props
-
-      if (!schema) {
-        return null
-      }
+      const { fields, formData, dataKeyPrefix } = props
 
       return (
         <>
-          {Object.keys(schema.properties).map((property) => {
-            const current = schema.properties[property]
+          {fields
+            .filter((field) => !field.ui.hidden)
+            .filter((field) => shouldShowField(field, formData, dataKeyPrefix))
+            .map((field) => {
+              const fieldPath = `${dataKeyPrefix}.${field.key}`
 
-            if (current.$ref) {
-              const nestSchmea = definitions.value.get(
-                current.$ref.split('/').at(-1),
-              )
+              // Handle nested fields (object type)
+              if (field.fields && field.fields.length > 0) {
+                return (
+                  <SectionFields
+                    key={fieldPath}
+                    fields={field.fields}
+                    formData={formData}
+                    dataKeyPrefix={fieldPath}
+                  />
+                )
+              }
 
               return (
-                <SchemaSection
-                  dataKey={`${getKey(key)}.${property}`}
-                  formData={formData}
-                  schema={nestSchmea}
-                  property={property}
+                <FormFieldItem
+                  key={fieldPath}
+                  field={field}
+                  value={get(formData.value, fieldPath, undefined)}
+                  onUpdateValue={(val) => {
+                    const parentPath = dataKeyPrefix
+                    if (get(formData.value, parentPath)) {
+                      set(formData.value, fieldPath, val)
+                    } else {
+                      set(formData.value, parentPath, {
+                        ...get(formData.value, parentPath, {}),
+                        [field.key]: val,
+                      })
+                    }
+                  }}
+                  gridCols={gridCols.value}
                 />
               )
-            }
-
-            return (
-              <ScheamFormItem
-                value={get(
-                  formData.value,
-                  `${getKey(key)}.${property}`,
-                  undefined,
-                )}
-                onUpdateValue={(val) => {
-                  if (get(formData.value, getKey(key))) {
-                    set(formData.value, `${getKey(key)}.${property}`, val)
-                  } else {
-                    set(formData.value, getKey(key), {
-                      ...get(formData.value, getKey(key), {}),
-                      [property]: val,
-                    })
-                  }
-                }}
-                title={current.title}
-                type={current.type}
-                options={current?.['ui:options']}
-                description={current.description}
-              />
-            )
-          })}
+            })}
         </>
       )
     }
   },
 })
 
-const ScheamFormItem = defineComponent({
+/**
+ * Renders a single form field
+ */
+const FormFieldItem = defineComponent({
   props: {
-    type: {
-      type: String,
+    field: {
+      type: Object as PropType<FormField>,
       required: true,
     },
-    title: {
-      type: String,
-      required: true,
-    },
-    description: {
-      type: String,
-    },
-    options: {
-      type: Object,
-      default: () => ({}),
-    },
-
     value: {
       type: Object as any,
-      required: true,
+      required: false,
     },
     onUpdateValue: {
       type: Function as PropType<(value: any) => void>,
       required: true,
     },
+    gridCols: {
+      type: Number,
+      default: 2,
+    },
   },
   setup(props) {
     const innerValue = ref(props.value)
+
+    watch(
+      () => props.value,
+      (newVal) => {
+        innerValue.value = newVal
+      },
+    )
 
     watchEffect(() => {
       props.onUpdateValue(innerValue.value)
     })
 
     const renderComponent = () => {
-      const { options } = props
+      const { field } = props
+      const { ui } = field
 
-      switch (props.type) {
-        case 'url':
-        case 'string': {
-          const { type: uiType } = options
-
-          switch (uiType) {
-            case 'select': {
-              const { values } = options as {
-                values: { label: string; value: string }[]
-              }
-              return (
-                <NSelect
-                  value={innerValue.value}
-                  onUpdateValue={(val) => {
-                    innerValue.value = val
-                  }}
-                  options={values}
-                  filterable
-                />
-              )
-            }
-            default:
-              return (
-                <NInput
-                  inputProps={{
-                    id: uuid(),
-                  }}
-                  value={innerValue.value}
-                  onUpdateValue={(val) => {
-                    innerValue.value = val
-                  }}
-                  type={uiType || 'text'}
-                  showPasswordOn="click"
-                  autosize={
-                    uiType == 'textarea'
-                      ? {
-                          maxRows: 5,
-                          minRows: 3,
-                        }
-                      : undefined
-                  }
-                  clearable
-                />
-              )
-          }
-        }
-        case 'array': {
+      switch (ui.component) {
+        case 'input':
           return (
-            <NDynamicTags
+            <NInput
+              inputProps={{ id: uuid() }}
               value={innerValue.value}
               onUpdateValue={(val) => {
                 innerValue.value = val
               }}
+              placeholder={ui.placeholder}
+              clearable
             />
           )
-        }
-        case 'boolean': {
+
+        case 'password':
+          return (
+            <NInput
+              inputProps={{ id: uuid() }}
+              value={innerValue.value}
+              onUpdateValue={(val) => {
+                innerValue.value = val
+              }}
+              type="password"
+              showPasswordOn="click"
+              placeholder={ui.placeholder}
+              clearable
+            />
+          )
+
+        case 'textarea':
+          return (
+            <NInput
+              inputProps={{ id: uuid() }}
+              value={innerValue.value}
+              onUpdateValue={(val) => {
+                innerValue.value = val
+              }}
+              type="textarea"
+              autosize={{ maxRows: 5, minRows: 3 }}
+              placeholder={ui.placeholder}
+              clearable
+            />
+          )
+
+        case 'number':
+          return (
+            <NInputNumber
+              value={innerValue.value}
+              onUpdateValue={(val) => {
+                innerValue.value = val
+              }}
+              placeholder={ui.placeholder}
+            />
+          )
+
+        case 'switch':
           return (
             <NSwitch
               value={innerValue.value}
@@ -354,49 +380,56 @@ const ScheamFormItem = defineComponent({
               }}
             />
           )
-        }
 
-        case 'number':
-        case 'integer': {
+        case 'select':
           return (
-            <NInputNumber
+            <NSelect
+              value={innerValue.value}
+              onUpdateValue={(val) => {
+                innerValue.value = val
+              }}
+              options={ui.options}
+              filterable
+              placeholder={ui.placeholder}
+            />
+          )
+
+        case 'tags':
+          return (
+            <NDynamicTags
               value={innerValue.value}
               onUpdateValue={(val) => {
                 innerValue.value = val
               }}
             />
           )
-        }
+
         default:
           return null
       }
     }
 
-    const uiStore = useStoreRef(UIStore)
-    const gridCols = computed(() => (uiStore.viewport.value.mobile ? 1 : 2))
     return () => {
-      const { title, options, description } = props
+      const { field, gridCols } = props
+      const { title, description, ui } = field
 
       const base = (
-        <>
-          <NFormItem label={title}>
-            {description ? (
-              <NSpace class={'w-full'} vertical>
-                {renderComponent()}
-
-                <NText class="text-xs" depth={3}>
-                  <span innerHTML={marked.parse(description) as string} />
-                </NText>
-              </NSpace>
-            ) : (
-              renderComponent()
-            )}
-          </NFormItem>
-        </>
+        <NFormItem label={title}>
+          {description ? (
+            <NSpace class="w-full" vertical>
+              {renderComponent()}
+              <NText class="text-xs" depth={3}>
+                <span innerHTML={marked.parse(description) as string} />
+              </NText>
+            </NSpace>
+          ) : (
+            renderComponent()
+          )}
+        </NFormItem>
       )
 
-      if (options.halfGrid && gridCols.value === 2) {
-        return <div class={'inline-block w-1/2'}>{base}</div>
+      if (ui.halfGrid && gridCols === 2) {
+        return <div class="inline-block w-1/2">{base}</div>
       }
 
       return base

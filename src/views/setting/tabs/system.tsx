@@ -1,8 +1,8 @@
-import { camelCase, cloneDeep, isEmpty, merge } from 'es-toolkit/compat'
+import { cloneDeep, isEmpty } from 'es-toolkit/compat'
 import { NButton, NColorPicker, NFormItem, useThemeVars } from 'naive-ui'
-import { ThemeColorConfig } from 'theme.config'
 import {
   defineComponent,
+  onBeforeMount,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -10,32 +10,23 @@ import {
   toRaw,
   watch,
 } from 'vue'
+import type { FormDSL } from '~/components/config-form/types'
 
 import { HeaderActionButton } from '~/components/button/rounded-button'
 import { ConfigForm } from '~/components/config-form'
 import { CheckCircleOutlinedIcon } from '~/components/icons'
-import { useStoreRef } from '~/hooks/use-store-ref'
 import { useLayout } from '~/layouts/content'
-import { UIStore } from '~/stores/ui'
 import { deepDiff, RESTManager } from '~/utils'
 import { colorRef, defineColors } from '~/utils/color'
 
 import { AIConfigSection } from './sections/ai-config'
-
-const NFormPrefixCls = 'mt-6'
-const NFormBaseProps = {
-  class: NFormPrefixCls,
-  labelPlacement: 'left',
-  labelAlign: 'right',
-  labelWidth: 150,
-  autocomplete: 'chrome-off',
-}
 
 export const autosizeableProps = {
   autosize: true,
   clearable: true,
   style: 'min-width: 300px; max-width: 100%',
 } as const
+
 export const TabSystem = defineComponent(() => {
   const { setHeaderButtons: setHeaderButton } = useLayout()
 
@@ -53,10 +44,11 @@ export const TabSystem = defineComponent(() => {
     setHeaderButton(null)
   })
 
-  const schema = ref()
+  const schema = ref<FormDSL | null>(null)
 
   onBeforeMount(async () => {
-    schema.value = await RESTManager.api.config.jsonschema.get({
+    // Use new form-schema endpoint
+    schema.value = await RESTManager.api.config('form-schema').get({
       transform: false,
     })
     await fetchConfig()
@@ -122,30 +114,17 @@ export const TabSystem = defineComponent(() => {
     let response = (await RESTManager.api.options.get({
       transform: false,
     })) as any
-    response = merge(cloneDeep(schema.value.default), response) as any
+
+    // Merge defaults from schema if available
+    if (schema.value?.defaults) {
+      const { merge } = await import('es-toolkit/compat')
+      response = merge(cloneDeep(schema.value.defaults), response) as any
+    }
 
     originConfigs = cloneDeep(response)
-
     Object.assign(configs, response)
   }
 
-  const uiStore = useStoreRef(UIStore)
-
-  const formProps = reactive(NFormBaseProps) as any
-
-  watch(
-    () => uiStore.viewport.value.mobile,
-    (n) => {
-      if (n) {
-        formProps.labelPlacement = 'top'
-        formProps.labelAlign = 'left'
-      } else {
-        formProps.labelPlacement = 'left'
-        formProps.labelAlign = 'right'
-      }
-    },
-    { immediate: true },
-  )
   return () => (
     <Fragment>
       <div class="pt-4" />
@@ -153,29 +132,22 @@ export const TabSystem = defineComponent(() => {
       {schema.value && (
         <ConfigForm
           initialValue={configs}
-          getKey={(key) => {
-            return key
-              .split('.')
-              .map((kk) => camelCase(kk))
-              .join('.')
-              .replace('Dto', '')
-          }}
           schema={schema.value}
           v-slots={{
-            AdminExtraDto: () => (
-              <>
-                <NFormItem label={'主题色'}>
-                  <AppColorSetter />
-                </NFormItem>
-              </>
-            ),
-            AIDto: () => (
+            ai: () => (
               <AIConfigSection
                 value={configs.ai || {}}
                 onUpdate={(value: any) => {
                   configs.ai = value
                 }}
               />
+            ),
+          }}
+          appendSlots={{
+            adminExtra: () => (
+              <NFormItem label={'主题色'}>
+                <AppColorSetter />
+              </NFormItem>
             ),
           }}
         />
@@ -210,7 +182,8 @@ const AppColorSetter = defineComponent({
           size="small"
           ghost
           onClick={() => {
-            Object.assign(colorRef.value, ThemeColorConfig)
+            // Reset to default primary color
+            Object.assign(colorRef.value, defineColors('#36ad6a'))
           }}
         >
           <span>重置</span>
