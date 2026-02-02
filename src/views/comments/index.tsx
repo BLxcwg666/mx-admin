@@ -1,4 +1,3 @@
-import markdownEscape from 'markdown-escape'
 import {
   NAvatar,
   NButton,
@@ -24,6 +23,7 @@ import type { TableColumns } from 'naive-ui/lib/data-table/src/interface'
 import { Icon } from '@vicons/utils'
 
 import { HeaderActionButton } from '~/components/button/rounded-button'
+import { EmojiPicker } from '~/components/editor/toolbar/emoji-picker'
 import {
   CheckmarkSharpIcon,
   CloseSharpIcon,
@@ -34,7 +34,6 @@ import {
 import { IpInfoPopover } from '~/components/ip-info'
 import { Table } from '~/components/table'
 import { WEB_URL } from '~/constants/env'
-import { KAOMOJI_LIST } from '~/constants/kaomoji'
 import { useStoreRef } from '~/hooks/use-store-ref'
 import { useDataTableFetch } from '~/hooks/use-table'
 import { ContentLayout } from '~/layouts/content'
@@ -496,54 +495,35 @@ const ManageComment = defineComponent(() => {
                     },
                     default() {
                       return (
-                        <NCard
-                          style="max-width: 300px; max-height: 500px"
-                          class={'overflow-auto'}
-                          bordered={false}
-                        >
-                          <NSpace align="center" class={'!justify-between'}>
-                            {KAOMOJI_LIST.map((kaomoji) => (
-                              <NButton
-                                text
-                                key={kaomoji}
-                                type="primary"
-                                onClick={() => {
-                                  if (!replyInputRef.value) {
-                                    return
-                                  }
-                                  const $ta = unref(replyInputRef.value)
-                                    .textareaElRef as HTMLTextAreaElement
-                                  $ta.focus()
+                        <EmojiPicker
+                          onSelect={(emoji: string) => {
+                            if (!replyInputRef.value) {
+                              return
+                            }
+                            const $ta = unref(replyInputRef.value)
+                              .textareaElRef as HTMLTextAreaElement
+                            $ta.focus()
 
-                                  nextTick(() => {
-                                    const start = $ta.selectionStart as number
-                                    const end = $ta.selectionEnd as number
-                                    const escapeKaomoji =
-                                      markdownEscape(kaomoji)
-                                    $ta.value = `${$ta.value.slice(
-                                      0,
-                                      Math.max(0, start),
-                                    )} ${escapeKaomoji} ${$ta.value.substring(
-                                      end,
-                                      $ta.value.length,
-                                    )}`
-                                    replyText.value = $ta.value
-                                    nextTick(() => {
-                                      const shouldMoveToPos =
-                                        start + escapeKaomoji.length + 2
-                                      $ta.selectionStart = shouldMoveToPos
-                                      $ta.selectionEnd = shouldMoveToPos
-
-                                      $ta.focus()
-                                    })
-                                  })
-                                }}
-                              >
-                                {kaomoji}
-                              </NButton>
-                            ))}
-                          </NSpace>
-                        </NCard>
+                            nextTick(() => {
+                              const start = $ta.selectionStart as number
+                              const end = $ta.selectionEnd as number
+                              $ta.value = `${$ta.value.slice(
+                                0,
+                                Math.max(0, start),
+                              )}${emoji}${$ta.value.substring(
+                                end,
+                                $ta.value.length,
+                              )}`
+                              replyText.value = $ta.value
+                              nextTick(() => {
+                                const shouldMoveToPos = start + emoji.length
+                                $ta.selectionStart = shouldMoveToPos
+                                $ta.selectionEnd = shouldMoveToPos
+                                $ta.focus()
+                              })
+                            })
+                          }}
+                        />
                       )
                     },
                   }}
