@@ -28,6 +28,7 @@ import { JSONParseReturnOriginal } from '~/utils/json'
 
 import { ImageDetailSection } from './components/image-detail-section'
 import { JSONEditor } from './components/json-editor'
+import { MetaPresetRenderer } from './components/meta-preset-renderer'
 
 type ItemType = 'date-picker'
 export const TextBaseDrawer = defineComponent({
@@ -178,6 +179,16 @@ export const TextBaseDrawer = defineComponent({
                 }}
               />
             </NFormItem>
+            <NDivider />
+
+            <MetaPresetRenderer
+              meta={props.data.meta || {}}
+              onUpdateMeta={(key, value) => {
+                if (!props.data.meta) props.data.meta = {}
+                props.data.meta[key] = value
+              }}
+            />
+
             <NDivider />
             <NFormItem label="附加字段" labelAlign="left">
               <div class="flex-grow text-right">

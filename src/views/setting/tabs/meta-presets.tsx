@@ -106,7 +106,23 @@ export const TabMetaPresets = defineComponent({
         const data = await RESTManager.api('meta-presets').get<{
           data: MetaPresetField[]
         }>()
-        presets.value = data.data || []
+
+        const processData = (items: any[], parentKey = ''): any[] => {
+          return items.map((item) => {
+            const uniqueKey =
+              item.id || (parentKey ? `${parentKey}.${item.key}` : item.key)
+            const children = item.children
+              ? processData(item.children, uniqueKey)
+              : undefined
+            return {
+              ...item,
+              _rowKey: uniqueKey,
+              children,
+            }
+          })
+        }
+
+        presets.value = processData(data.data || [])
       } catch (error) {
         console.error('Failed to fetch presets:', error)
       } finally {
@@ -202,7 +218,7 @@ export const TabMetaPresets = defineComponent({
       {
         title: '键名',
         key: 'key',
-        width: 120,
+        width: 200,
         ellipsis: { tooltip: true },
         render: (row) => <NText code>{row.key}</NText>,
       },
@@ -221,11 +237,12 @@ export const TabMetaPresets = defineComponent({
         title: '范围',
         key: 'scope',
         width: 80,
-        render: (row) => (
-          <NTag size="small" type="info">
-            {getScopeLabel(row.scope)}
-          </NTag>
-        ),
+        render: (row) =>
+          row.scope ? (
+            <NTag size="small" type="info">
+              {getScopeLabel(row.scope)}
+            </NTag>
+          ) : null,
       },
       {
         title: '描述',
@@ -236,51 +253,53 @@ export const TabMetaPresets = defineComponent({
         title: '启用',
         key: 'enabled',
         width: 80,
-        render: (row) => (
-          <NSwitch
-            value={row.enabled}
-            disabled={row.isBuiltin === true}
-            onUpdateValue={() => handleToggleEnabled(row)}
-          />
-        ),
+        render: (row) =>
+          row.enabled !== undefined ? (
+            <NSwitch
+              value={row.enabled}
+              disabled={row.isBuiltin === true}
+              onUpdateValue={() => handleToggleEnabled(row)}
+            />
+          ) : null,
       },
       {
         title: '操作',
         key: 'actions',
         width: 120,
         fixed: 'right',
-        render: (row) => (
-          <NSpace size="small">
-            <NButton
-              size="tiny"
-              quaternary
-              type="primary"
-              disabled={row.isBuiltin === true}
-              onClick={() => handleEdit(row)}
-            >
-              编辑
-            </NButton>
-            <NPopconfirm
-              positiveText="取消"
-              negativeText="删除"
-              onNegativeClick={() => handleDelete(row.id)}
-            >
-              {{
-                trigger: () => (
-                  <NButton
-                    size="tiny"
-                    quaternary
-                    type="error"
-                    disabled={row.isBuiltin === true}
-                  >
-                    删除
-                  </NButton>
-                ),
-                default: () => `确定删除预设 "${row.label}"？`,
-              }}
-            </NPopconfirm>
-          </NSpace>
-        ),
+        render: (row) =>
+          row.id ? (
+            <NSpace size="small">
+              <NButton
+                size="tiny"
+                quaternary
+                type="primary"
+                disabled={row.isBuiltin === true}
+                onClick={() => handleEdit(row)}
+              >
+                编辑
+              </NButton>
+              <NPopconfirm
+                positiveText="取消"
+                negativeText="删除"
+                onNegativeClick={() => handleDelete(row.id)}
+              >
+                {{
+                  trigger: () => (
+                    <NButton
+                      size="tiny"
+                      quaternary
+                      type="error"
+                      disabled={row.isBuiltin === true}
+                    >
+                      删除
+                    </NButton>
+                  ),
+                  default: () => `确定删除预设 "${row.label}"？`,
+                }}
+              </NPopconfirm>
+            </NSpace>
+          ) : null,
       },
     ]
 
@@ -294,6 +313,7 @@ export const TabMetaPresets = defineComponent({
           <NDataTable
             columns={columns}
             data={presets.value}
+            rowKey={(row: any) => row._rowKey}
             loading={loading.value}
             bordered={false}
             size="small"
