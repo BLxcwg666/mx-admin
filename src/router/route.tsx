@@ -313,6 +313,15 @@ export const routeForMenu: Array<RouteRecordRaw> = [
         },
         component: () => import('../views/ai/translation'),
       },
+      {
+        path: 'tasks',
+        name: RouteName.AiTasks,
+        meta: {
+          title: '任务',
+          icon: <ClockIcon />,
+        },
+        component: () => import('../views/ai/tasks'),
+      },
     ],
   },
   {
