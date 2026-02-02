@@ -1,12 +1,13 @@
 import {
   NButton,
   NIcon,
+  NInput,
   NPopconfirm,
   NPopover,
   NSpace,
   useMessage,
 } from 'naive-ui'
-import { computed, defineComponent, onMounted, reactive, watch } from 'vue'
+import { computed, defineComponent, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type {
   CategoryWithChildrenModel,
@@ -28,6 +29,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   PhPushPin,
+  SearchIcon,
   ThumbsUpIcon,
 } from '~/components/icons'
 import { TableTitleLink } from '~/components/link/title-link'
@@ -48,10 +50,33 @@ import { RESTManager } from '../../utils/rest'
 export const ManagePostListView = defineComponent({
   name: 'PostList',
   setup() {
+    // 搜索关键词
+    const searchKeyword = ref('')
+    const isSearching = ref(false)
+
     const { loading, checkedRowKeys, data, pager, sortProps, fetchDataFn } =
       useDataTableFetch(
         (data, pager) =>
           async (page = route.query.page || 1, size = 20) => {
+            // 有搜索关键词时使用搜索 API
+            if (searchKeyword.value.trim()) {
+              isSearching.value = true
+              const response = await RESTManager.api.search
+                .type('post')
+                .get<PostResponse>({
+                  params: {
+                    keyword: searchKeyword.value.trim(),
+                    page,
+                    size,
+                  },
+                })
+
+              data.value = response.data
+              pager.value = response.pagination
+              return
+            }
+
+            isSearching.value = false
             const response = await RESTManager.api.posts.get<PostResponse>({
               params: {
                 page,
@@ -80,6 +105,16 @@ export const ManagePostListView = defineComponent({
         await fetchData(n)
       },
     )
+
+    // 搜索防抖
+    let searchTimer: ReturnType<typeof setTimeout> | null = null
+    const handleSearch = (value: string) => {
+      searchKeyword.value = value
+      if (searchTimer) clearTimeout(searchTimer)
+      searchTimer = setTimeout(() => {
+        fetchData(1)
+      }, 300)
+    }
 
     const categoryStore = useStoreRef(CategoryStore)
 
@@ -462,7 +497,34 @@ export const ManagePostListView = defineComponent({
                 <HeaderActionButton to={'/posts/edit'} icon={<AddIcon />} />
               </>
             ),
-            default: () => <DataTable />,
+            default: () => (
+              <div class="flex flex-col gap-4">
+                {/* 搜索框 */}
+                <div class="flex items-center gap-2">
+                  <NInput
+                    value={searchKeyword.value}
+                    onUpdateValue={handleSearch}
+                    placeholder="搜索标题..."
+                    clearable
+                    class="max-w-xs"
+                  >
+                    {{
+                      prefix: () => (
+                        <NIcon class="text-gray-400">
+                          <SearchIcon />
+                        </NIcon>
+                      ),
+                    }}
+                  </NInput>
+                  {isSearching.value && (
+                    <span class="text-sm text-gray-500">
+                      搜索结果: {pager.value.total} 条
+                    </span>
+                  )}
+                </div>
+                <DataTable />
+              </div>
+            ),
           }}
         </ContentLayout>
       )

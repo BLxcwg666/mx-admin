@@ -1,5 +1,13 @@
-import { NButton, NEllipsis, NPopconfirm, NSpace, useMessage } from 'naive-ui'
-import { defineComponent, onMounted, reactive, watch } from 'vue'
+import {
+  NButton,
+  NEllipsis,
+  NIcon,
+  NInput,
+  NPopconfirm,
+  NSpace,
+  useMessage,
+} from 'naive-ui'
+import { defineComponent, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Pager } from '~/models/base'
 import type { NoteModel } from '~/models/note'
@@ -15,6 +23,7 @@ import {
   EyeOffIcon,
   HeartIcon,
   PlusIcon,
+  SearchIcon,
 } from '~/components/icons'
 import { TableTitleLink } from '~/components/link/title-link'
 import { DeleteConfirmButton } from '~/components/special-button/delete-confirm'
@@ -32,10 +41,34 @@ import { RESTManager } from '../../utils/rest'
 export const ManageNoteListView = defineComponent({
   name: 'NoteList',
   setup() {
+    // 搜索关键词
+    const searchKeyword = ref('')
+    const isSearching = ref(false)
+
     const { loading, checkedRowKeys, data, pager, sortProps, fetchDataFn } =
       useDataTableFetch<NoteModel>(
         (data, pager) =>
           async (page = route.query.page || 1, size = 20, db_query) => {
+            // 有搜索关键词时使用搜索 API
+            if (searchKeyword.value.trim()) {
+              isSearching.value = true
+              const response = await RESTManager.api.search.type('note').get<{
+                data: NoteModel[]
+                pagination: Pager
+              }>({
+                params: {
+                  keyword: searchKeyword.value.trim(),
+                  page,
+                  size,
+                },
+              })
+
+              data.value = response.data
+              pager.value = response.pagination
+              return
+            }
+
+            isSearching.value = false
             const response = await RESTManager.api.notes.get<{
               data: NoteModel[]
               pagination: Pager
@@ -67,6 +100,16 @@ export const ManageNoteListView = defineComponent({
         await fetchData(n)
       },
     )
+
+    // 搜索防抖
+    let searchTimer: ReturnType<typeof setTimeout> | null = null
+    const handleSearch = (value: string) => {
+      searchKeyword.value = value
+      if (searchTimer) clearTimeout(searchTimer)
+      searchTimer = setTimeout(() => {
+        fetchData(1)
+      }, 300)
+    }
 
     onMounted(async () => {
       await fetchData()
@@ -431,7 +474,34 @@ export const ManageNoteListView = defineComponent({
                 <HeaderActionButton to={'/notes/edit'} icon={<PlusIcon />} />
               </>
             ),
-            default: () => <DataTable />,
+            default: () => (
+              <div class="flex flex-col gap-4">
+                {/* 搜索框 */}
+                <div class="flex items-center gap-2">
+                  <NInput
+                    value={searchKeyword.value}
+                    onUpdateValue={handleSearch}
+                    placeholder="搜索标题..."
+                    clearable
+                    class="max-w-xs"
+                  >
+                    {{
+                      prefix: () => (
+                        <NIcon class="text-gray-400">
+                          <SearchIcon />
+                        </NIcon>
+                      ),
+                    }}
+                  </NInput>
+                  {isSearching.value && (
+                    <span class="text-sm text-gray-500">
+                      搜索结果: {pager.value.total} 条
+                    </span>
+                  )}
+                </div>
+                <DataTable />
+              </div>
+            ),
           }}
         </ContentLayout>
       )
