@@ -26,8 +26,10 @@ import { ContentLayout } from '~/layouts/content'
 import { RESTManager } from '~/utils'
 
 import { AnalyzeDataTable } from './components/analyze-data-table'
+import { ContentAnalysis } from './components/content-analysis'
 import { GuestActivity } from './components/guest-activity'
 import { ReadingRank } from './components/reading-rank'
+import { TrafficAnalysis } from './components/traffic-analysis'
 
 const SectionTitle = defineComponent((_, { slots }) => () => (
   <div class="my-[12px] font-semibold text-gray-400">{slots.default?.()}</div>
@@ -320,6 +322,14 @@ export default defineComponent({
 
           <NTabPane name={'访问路径'}>
             <AnalyzeDataTable />
+          </NTabPane>
+
+          <NTabPane name="内容分析">
+            <ContentAnalysis />
+          </NTabPane>
+
+          <NTabPane name="流量分析">
+            <TrafficAnalysis />
           </NTabPane>
 
           <NTabPane name="访客活动">
