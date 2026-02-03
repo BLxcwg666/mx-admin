@@ -100,7 +100,8 @@ export const TabSystem = defineComponent(() => {
     for await (const [key, value] of entries) {
       const val = Object.fromEntries(
         Object.entries(value).map(([k, v]) => {
-          if (Array.isArray(v)) {
+          // For arrays and objects, send complete data to avoid partial updates
+          if (Array.isArray(v) || (typeof v === 'object' && v !== null)) {
             return [k, configs[key][k]]
           }
           return [k, v]

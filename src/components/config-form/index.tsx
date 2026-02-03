@@ -259,15 +259,7 @@ export const SectionFields = defineComponent({
                   field={field}
                   value={get(formData.value, fieldPath, undefined)}
                   onUpdateValue={(val) => {
-                    const parentPath = dataKeyPrefix
-                    if (get(formData.value, parentPath)) {
-                      set(formData.value, fieldPath, val)
-                    } else {
-                      set(formData.value, parentPath, {
-                        ...get(formData.value, parentPath, {}),
-                        [field.key]: val,
-                      })
-                    }
+                    set(formData.value, fieldPath, val)
                   }}
                   gridCols={gridCols.value}
                 />
