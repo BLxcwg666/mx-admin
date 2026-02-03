@@ -304,6 +304,7 @@ const FormFieldItem = defineComponent({
   setup(props) {
     const innerValue = ref(props.value)
 
+    // Only sync from props, never trigger onUpdateValue
     watch(
       () => props.value,
       (newVal) => {
@@ -311,9 +312,11 @@ const FormFieldItem = defineComponent({
       },
     )
 
-    watchEffect(() => {
-      props.onUpdateValue(innerValue.value)
-    })
+    // User input handler - only this should trigger onUpdateValue
+    const handleUserInput = (val: any) => {
+      innerValue.value = val
+      props.onUpdateValue(val)
+    }
 
     const renderComponent = () => {
       const { field } = props
@@ -325,9 +328,7 @@ const FormFieldItem = defineComponent({
             <NInput
               inputProps={{ id: uuid() }}
               value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
+              onUpdateValue={handleUserInput}
               placeholder={ui.placeholder}
               clearable
             />
@@ -338,9 +339,7 @@ const FormFieldItem = defineComponent({
             <NInput
               inputProps={{ id: uuid() }}
               value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
+              onUpdateValue={handleUserInput}
               type="password"
               showPasswordOn="click"
               placeholder={ui.placeholder}
@@ -353,9 +352,7 @@ const FormFieldItem = defineComponent({
             <NInput
               inputProps={{ id: uuid() }}
               value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
+              onUpdateValue={handleUserInput}
               type="textarea"
               autosize={{ maxRows: 5, minRows: 3 }}
               placeholder={ui.placeholder}
@@ -367,30 +364,21 @@ const FormFieldItem = defineComponent({
           return (
             <NInputNumber
               value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
+              onUpdateValue={handleUserInput}
               placeholder={ui.placeholder}
             />
           )
 
         case 'switch':
           return (
-            <NSwitch
-              value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
-            />
+            <NSwitch value={innerValue.value} onUpdateValue={handleUserInput} />
           )
 
         case 'select':
           return (
             <NSelect
               value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
+              onUpdateValue={handleUserInput}
               options={ui.options}
               filterable
               placeholder={ui.placeholder}
@@ -401,9 +389,7 @@ const FormFieldItem = defineComponent({
           return (
             <NDynamicTags
               value={innerValue.value}
-              onUpdateValue={(val) => {
-                innerValue.value = val
-              }}
+              onUpdateValue={handleUserInput}
             />
           )
 
