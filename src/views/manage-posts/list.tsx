@@ -172,7 +172,11 @@ export const ManagePostListView = defineComponent({
                       id={row.id}
                       title={row.title}
                       inPageTo={`/posts/edit?id=${row.id}`}
-                      externalLinkTo={`/posts/${row.category.slug}/${row.slug}`}
+                      externalLinkTo={
+                        row.category?.slug
+                          ? `/posts/${row.category.slug}/${row.slug}`
+                          : undefined
+                      }
                       xLog={row.meta?.xLog}
                     />
                   </div>
