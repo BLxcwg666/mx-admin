@@ -135,6 +135,7 @@ export const useServerDraft = (
     type: DraftRefType,
     id: string,
   ): Promise<DraftModel | null> => {
+    currentRefId.value = id
     try {
       const draft = await draftsApi.getByRef(type, id)
       if (draft?.id) {
@@ -219,6 +220,14 @@ export const useServerDraft = (
     await doSave()
   }
 
+  const setRefId = (id?: string) => {
+    currentRefId.value = id
+  }
+
+  const setDraftId = (id?: string) => {
+    draftId.value = id
+  }
+
   const syncMemory = () => {
     memoPreviousData = getData()
   }
@@ -243,6 +252,8 @@ export const useServerDraft = (
 
     saveDraft,
     saveImmediately,
+    setRefId,
+    setDraftId,
     loadDraftById,
     loadDraftByRef,
     getNewDrafts,

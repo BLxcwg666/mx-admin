@@ -103,6 +103,9 @@ export function useWriteDraft<T>(data: T, options: UseWriteDraftOptions<T>) {
     const $id = id.value
     const $draftId = draftIdFromRoute.value
 
+    serverDraft.setRefId(typeof $id === 'string' ? $id : undefined)
+    serverDraft.setDraftId(typeof $draftId === 'string' ? $draftId : undefined)
+
     // Scene 1: Load draft via draftId
     if ($draftId) {
       const draft = await serverDraft.loadDraftById($draftId)
