@@ -8,7 +8,7 @@ import {
   NSwitch,
   useMessage,
 } from 'naive-ui'
-import { computed, defineComponent, onMounted, reactive, ref } from 'vue'
+import { computed, defineComponent, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { CategoryModel, TagModel } from '~/models/category'
 import type { DraftModel } from '~/models/draft'
@@ -136,8 +136,11 @@ const PostWriteView = defineComponent(() => {
 
   const loadPublished = async (id: string) => {
     const payload = (await RESTManager.api.posts(id).get()) as any
-    payload.data.relatedId = payload.data.related?.map((r: any) => r.id) || []
-    postListState.append(payload.data.related)
+    const related = Array.isArray(payload.data.related)
+      ? payload.data.related
+      : []
+    payload.data.relatedId = related.map((r: any) => r.id)
+    postListState.append(related)
     parsePayloadIntoReactiveData(payload.data as PostModel)
   }
 
@@ -175,9 +178,25 @@ const PostWriteView = defineComponent(() => {
 
   const loading = computed(() => !draftInitialized.value)
 
+  const resetEditorState = () => {
+    Object.assign(data, resetReactive())
+  }
+
   onMounted(async () => {
     await initializeDraft()
   })
+
+  watch(
+    () => route.query.id,
+    async (nextId, prevId) => {
+      if (nextId === prevId) {
+        return
+      }
+      serverDraft.stopAutoSave()
+      resetEditorState()
+      await initializeDraft()
+    },
+  )
 
   const drawerShow = ref(false)
 
