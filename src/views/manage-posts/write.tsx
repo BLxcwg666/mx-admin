@@ -18,7 +18,6 @@ import type { SelectMixedOption } from 'naive-ui/lib/select/src/interface'
 
 import { Icon } from '@vicons/utils'
 
-import { AiHelperButton } from '~/components/ai/ai-helper'
 import { HeaderActionButton } from '~/components/button/rounded-button'
 import {
   DraftListModal,
@@ -305,9 +304,6 @@ const PostWriteView = defineComponent(() => {
           }}
         />
 
-        {(!data.title || !data.slug) && data.text.length > 0 && (
-          <AiHelperButton reactiveData={data} />
-        )}
         {!!data.slug && (
           <CopyTextButton
             text={`${WEB_URL}/posts/${category.value.slug}/${data.slug}`}

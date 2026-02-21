@@ -43,15 +43,10 @@ interface AIModelAssignment {
 interface AIConfig {
   providers: AIProviderConfig[]
   summaryModel?: AIModelAssignment
-  writerModel?: AIModelAssignment
   commentReviewModel?: AIModelAssignment
-  translationModel?: AIModelAssignment
   enableSummary: boolean
   enableAutoGenerateSummary: boolean
   aiSummaryTargetLanguage: string
-  enableTranslation: boolean
-  enableAutoGenerateTranslation: boolean
-  translationTargetLanguages: string[]
 }
 
 interface ModelInfo {
@@ -670,30 +665,12 @@ export const AIConfigSection = defineComponent({
             />
 
             <AIModelAssignmentSelect
-              label="写作助手"
-              description="用于生成标题、Slug 等的模型"
-              assignment={config.value.writerModel}
-              providers={config.value.providers || []}
-              providerModels={providerModels.value}
-              onUpdate={(a) => updateConfig({ writerModel: a })}
-            />
-
-            <AIModelAssignmentSelect
               label="评论审核"
               description="用于审核评论的模型"
               assignment={config.value.commentReviewModel}
               providers={config.value.providers || []}
               providerModels={providerModels.value}
               onUpdate={(a) => updateConfig({ commentReviewModel: a })}
-            />
-
-            <AIModelAssignmentSelect
-              label="翻译功能"
-              description="用于翻译文章的模型"
-              assignment={config.value.translationModel}
-              providers={config.value.providers || []}
-              providerModels={providerModels.value}
-              onUpdate={(a) => updateConfig({ translationModel: a })}
             />
           </NForm>
         </NCard>
@@ -733,53 +710,6 @@ export const AIConfigSection = defineComponent({
                 }
                 placeholder="auto 或 ISO 639-1 语言代码"
                 style="max-width: 200px"
-              />
-            </NFormItem>
-
-            <NFormItem label="启用 AI 翻译">
-              <NSwitch
-                value={config.value.enableTranslation}
-                onUpdateValue={(v: boolean) =>
-                  updateConfig({ enableTranslation: v })
-                }
-              />
-            </NFormItem>
-
-            <NFormItem label="自动生成翻译">
-              <NSpace vertical>
-                <NSwitch
-                  value={config.value.enableAutoGenerateTranslation}
-                  onUpdateValue={(v: boolean) =>
-                    updateConfig({ enableAutoGenerateTranslation: v })
-                  }
-                  disabled={!config.value.enableTranslation}
-                />
-                <NText depth={3} class="text-xs">
-                  发布文章时自动生成翻译
-                </NText>
-              </NSpace>
-            </NFormItem>
-
-            <NFormItem label="翻译目标语言">
-              <NSelect
-                value={config.value.translationTargetLanguages || []}
-                onUpdateValue={(v: string[]) =>
-                  updateConfig({ translationTargetLanguages: v })
-                }
-                multiple
-                options={[
-                  { label: '英语', value: 'en' },
-                  { label: '日语', value: 'ja' },
-                  { label: '韩语', value: 'ko' },
-                  { label: '法语', value: 'fr' },
-                  { label: '德语', value: 'de' },
-                  { label: '西班牙语', value: 'es' },
-                  { label: '俄语', value: 'ru' },
-                  { label: '繁体中文', value: 'zh-TW' },
-                ]}
-                placeholder="选择目标语言"
-                style="max-width: 300px"
-                disabled={!config.value.enableTranslation}
               />
             </NFormItem>
           </NForm>

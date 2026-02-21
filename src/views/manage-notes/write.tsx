@@ -29,7 +29,6 @@ import type { WriteBaseType } from '~/shared/types/base'
 
 import { Icon } from '@vicons/utils'
 
-import { AiHelperButton } from '~/components/ai/ai-helper'
 import { HeaderActionButton } from '~/components/button/rounded-button'
 import {
   DraftListModal,
@@ -359,12 +358,6 @@ const NoteWriteView = defineComponent(() => {
             data.title = e
           }}
         />
-
-        {data.text.length > 0 && (
-          <div class={'absolute bottom-0 right-0 top-0 z-10 flex items-center'}>
-            <AiHelperButton reactiveData={data} />
-          </div>
-        )}
       </div>
 
       <div class={'py-3 text-gray-500'}>

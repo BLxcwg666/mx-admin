@@ -54,9 +54,6 @@ enum TaskStatus {
 
 enum AITaskType {
   Summary = 'ai:summary',
-  Translation = 'ai:translation',
-  TranslationBatch = 'ai:translation:batch',
-  TranslationAll = 'ai:translation:all',
 }
 
 interface TaskLog {
@@ -140,12 +137,6 @@ const getTaskTypeLabel = (type: string): string => {
   switch (type) {
     case AITaskType.Summary:
       return 'AI 摘要'
-    case AITaskType.Translation:
-      return 'AI 翻译'
-    case AITaskType.TranslationBatch:
-      return 'AI 批量翻译'
-    case AITaskType.TranslationAll:
-      return 'AI 全量翻译'
     default:
       return type
   }
@@ -411,9 +402,6 @@ export default defineComponent({
     const typeOptions = [
       { label: '全部类型', value: '' },
       { label: 'AI 摘要', value: AITaskType.Summary },
-      { label: 'AI 翻译', value: AITaskType.Translation },
-      { label: 'AI 批量翻译', value: AITaskType.TranslationBatch },
-      { label: 'AI 全量翻译', value: AITaskType.TranslationAll },
     ]
 
     // Stats

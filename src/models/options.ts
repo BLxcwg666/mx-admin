@@ -126,7 +126,6 @@ export module MxServerOptions {
   export interface AIOption {
     providers: AIProviderConfig[]
     summaryModel?: AIModelAssignment
-    writerModel?: AIModelAssignment
     commentReviewModel?: AIModelAssignment
     enableSummary: boolean
     enableAutoGenerateSummary: boolean
