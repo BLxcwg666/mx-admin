@@ -46,7 +46,7 @@ class RESTManagerStatic {
             } else {
               Message.error(message)
             }
-          } catch (error_) {
+          } catch (_error_) {
             // Message.error('出错了，请查看控制台')
           }
 
@@ -157,13 +157,11 @@ RESTManager.instance.interceptors.request.use((url, options) => {
   if (options.method?.toUpperCase() === 'GET') {
     modifiedUrl = `${url}?t=${Date.now()}`
   }
-  if (options.headers) {
-    if (token) {
-      options.headers['Authorization'] = token
-    }
-
-    options.headers['x-uuid'] = _uuid
+  options.headers = options.headers || {}
+  if (token) {
+    options.headers['Authorization'] = token
   }
+  options.headers['x-uuid'] = _uuid
   return {
     url: modifiedUrl,
     options: {

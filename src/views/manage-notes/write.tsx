@@ -19,6 +19,7 @@ import {
   reactive,
   ref,
   toRaw,
+  watch,
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { PaginateResult } from '@mx-space/api-client'
@@ -68,6 +69,7 @@ const CrossBellConnectorIndirector = defineAsyncComponent({
 type NoteReactiveType = {
   mood: string
   weather: string
+  hasPassword: boolean
   password: string | null
   publicAt: Date | null
   bookmark: boolean
@@ -122,6 +124,7 @@ const NoteWriteView = defineComponent(() => {
     bookmark: false,
     mood: '',
 
+    hasPassword: false,
     password: null,
     publicAt: null,
     weather: '',
@@ -139,10 +142,10 @@ const NoteWriteView = defineComponent(() => {
   })
 
   const parsePayloadIntoReactiveData = (payload: NoteModel) =>
-    // biome-ignore lint/correctness/useHookAtTopLevel: <explanation>
     useParsePayloadIntoData(data)(payload)
   const data = reactive<NoteReactiveType>(resetReactive())
   const nid = ref<number>()
+  const initialHasPassword = ref(false)
 
   const applyDraft = (
     draft: DraftModel,
@@ -164,8 +167,11 @@ const NoteWriteView = defineComponent(() => {
       const specific = draft.typeSpecificData as any
       if (specific.mood) _data.mood = specific.mood
       if (specific.weather) _data.weather = specific.weather
+      if (typeof specific.hasPassword === 'boolean')
+        _data.hasPassword = specific.hasPassword
       if (typeof specific.password === 'string' || specific.password === null)
         _data.password = specific.password
+      if (typeof specific.password === 'string') _data.hasPassword = true
       if (specific.publicAt) _data.publicAt = new Date(specific.publicAt)
       if (typeof specific.bookmark === 'boolean')
         _data.bookmark = specific.bookmark
@@ -195,13 +201,13 @@ const NoteWriteView = defineComponent(() => {
     )} 天`
 
     parsePayloadIntoReactiveData(noteData as NoteModel)
+    initialHasPassword.value = !!noteData.hasPassword
   }
 
   const {
     id: routeId,
     draftInitialized,
     serverDraft,
-    isEditing,
     initialize: initializeDraft,
     recoveryModal,
     listModal,
@@ -216,6 +222,7 @@ const NoteWriteView = defineComponent(() => {
       typeSpecificData: {
         mood: data.mood,
         weather: data.weather,
+        hasPassword: data.hasPassword,
         password: data.password,
         publicAt: data.publicAt ? data.publicAt.toISOString() : null,
         bookmark: data.bookmark,
@@ -236,27 +243,51 @@ const NoteWriteView = defineComponent(() => {
 
   const { fetchTopic, topics } = useNoteTopic()
 
-  onMounted(async () => {
+  const hydrateFromRoute = async () => {
+    Object.assign(data, resetReactive())
+    nid.value = undefined
+    initialHasPassword.value = false
     await initializeDraft()
+  }
+
+  onMounted(async () => {
+    await hydrateFromRoute()
   })
+
+  watch(
+    () => route.query.id,
+    async (next, prev) => {
+      if (next === prev) {
+        return
+      }
+      await hydrateFromRoute()
+    },
+  )
 
   const drawerShow = ref(false)
 
   const message = useMessage()
   const router = useRouter()
 
-  const enablePassword = computed(() => typeof data.password === 'string')
+  const enablePassword = computed(() => data.hasPassword)
 
   const handleSubmit = async () => {
     const parseDataToPayload = (): { [key in keyof NoteModel]?: any } => {
+      const password = !data.hasPassword
+        ? initialHasPassword.value
+          ? ''
+          : null
+        : data.password && data.password.length > 0
+          ? data.password
+          : null
+
       return {
         ...toRaw(data),
         title:
           data.title && data.title.trim()
             ? data.title.trim()
             : defaultTitle.value,
-        password:
-          data.password && data.password.length > 0 ? data.password : null,
+        password,
         publicAt: data.publicAt
           ? (() => {
               const date = new Date(data.publicAt)
@@ -472,8 +503,9 @@ const NoteWriteView = defineComponent(() => {
           <NSwitch
             value={enablePassword.value}
             onUpdateValue={(e) => {
+              data.hasPassword = e
               if (e) {
-                data.password = ''
+                data.password = data.password ?? ''
               } else {
                 data.password = null
               }
