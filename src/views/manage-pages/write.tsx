@@ -222,12 +222,14 @@ const PageWriteView = defineComponent(() => {
         }}
       />
 
-      <div class={'pt-3 text-gray-700 dark:text-gray-300'}>
-        <UnderlineInput
-          value={data.subtitle}
-          onChange={(e) => void (data.subtitle = e)}
-        />
-      </div>
+      {!!data.subtitle?.trim() && (
+        <div class={'pt-3 text-gray-700 dark:text-gray-300'}>
+          <UnderlineInput
+            value={data.subtitle}
+            onChange={(e) => void (data.subtitle = e)}
+          />
+        </div>
+      )}
       <div class={'py-3 text-gray-500'}>
         <label>{`${WEB_URL}/`}</label>
         <UnderlineInput
