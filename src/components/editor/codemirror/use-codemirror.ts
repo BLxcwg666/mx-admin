@@ -28,6 +28,15 @@ import { syntaxTheme } from './syntax-highlight'
 import { useCodeMirrorConfigureFonts } from './use-auto-fonts'
 import { useCodeMirrorAutoToggleTheme } from './use-auto-theme'
 
+const CodeMirrorEditorView = EditorView as typeof EditorView & {
+  EDIT_CONTEXT?: boolean
+}
+
+if (typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent)) {
+  // Chrome's EditContext still causes the IME candidate window to jump on Windows.
+  CodeMirrorEditorView.EDIT_CONTEXT = false
+}
+
 interface Props {
   initialDoc: string
   onChange?: (state: EditorState) => void

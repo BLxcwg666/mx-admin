@@ -87,6 +87,40 @@ const ManageComment = defineComponent(() => {
   const replyInputRef = ref<typeof NInput>()
 
   const requestLoading = ref(false)
+  const aiReviewLoading = ref<string | null>(null)
+
+  const handleAIReview = async (row: CommentModel) => {
+    aiReviewLoading.value = row.id
+    try {
+      const result = await RESTManager.api.ai['comment-review'].test.post<{
+        isSpam: boolean
+        score?: number
+        reason?: string
+      }>({
+        data: {
+          text: row.text,
+          author: row.author,
+          url: row.url || '',
+          user_agent: (row as any).agent || '',
+        },
+      })
+      if (result.isSpam) {
+        const detail = result.reason
+          ? ` (${result.reason})`
+          : result.score != null
+            ? ` (score: ${result.score})`
+            : ''
+        message.warning(`AI 判定为垃圾评论${detail}`, { duration: 5000 })
+      } else {
+        const detail = result.score != null ? ` (score: ${result.score})` : ''
+        message.success(`AI 判定为正常评论${detail}`, { duration: 3000 })
+      }
+    } catch (e: any) {
+      message.error(e.message || 'AI 审核请求失败')
+    } finally {
+      aiReviewLoading.value = null
+    }
+  }
 
   const onReplySubmit = async () => {
     if (!replyComment.value) {
@@ -294,6 +328,15 @@ const ManageComment = defineComponent(() => {
                   垃圾
                 </NButton>
               )}
+              <NButton
+                quaternary
+                size="tiny"
+                type="default"
+                loading={aiReviewLoading.value === row.id}
+                onClick={() => handleAIReview(row)}
+              >
+                AI 审核
+              </NButton>
               {tabValue.value !== CommentType.Trash && (
                 <NButton
                   quaternary
