@@ -2,8 +2,6 @@ import { isPlainObject } from 'es-toolkit/compat'
 import { extend } from 'umi-request'
 import type { RequestMethod, RequestOptionsInit } from 'umi-request'
 
-import { simpleCamelcaseKeys } from '@mx-space/api-client'
-
 import { API_URL } from '~/constants/env'
 import { uuid } from '~/utils'
 
@@ -71,6 +69,35 @@ class RESTManagerStatic {
   }
 }
 
+const isIdKey = (key: string) =>
+  /^[\dA-Fa-f]{24}$/.test(key) ||
+  /^[\dA-Fa-f]{8}(?:-[\dA-Fa-f]{4}){3}-[\dA-Fa-f]{12}$/.test(key)
+
+const camelcase = (str: string) =>
+  str
+    .replace(/^_+/, '')
+    .replaceAll(/([_-][a-z])/gi, ($1) =>
+      $1.toUpperCase().replace('-', '').replace('_', ''),
+    )
+
+// Same as `simpleCamelcaseKeys` from api-client, but it also keeps UUID keys
+// (the Go core uses UUID ids), otherwise `-a1b2` inside an id becomes `A1b2`.
+const camelcaseKeys = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map((x) => camelcaseKeys(x))
+  }
+  if (isPlainObject(obj)) {
+    return Object.keys(obj).reduce(
+      (result, key) => {
+        result[isIdKey(key) ? key : camelcase(key)] = camelcaseKeys(obj[key])
+        return result
+      },
+      {} as Record<string, any>,
+    )
+  }
+  return obj
+}
+
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 // biome-ignore lint/suspicious/noEmptyBlockStatements: This is intentional as a placeholder function
 const noop = () => {}
@@ -106,9 +133,7 @@ function buildRoute(manager: RESTManagerStatic): IRequestHandler {
 
           return Array.isArray(res) || isPlainObject(res)
             ? (() => {
-                const transform = shouldTransformData
-                  ? simpleCamelcaseKeys(res)
-                  : res
+                const transform = shouldTransformData ? camelcaseKeys(res) : res
 
                 const nextTransform = Array.isArray(transform) ? [] : {}
 

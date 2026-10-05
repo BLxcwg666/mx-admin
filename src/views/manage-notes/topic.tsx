@@ -53,8 +53,7 @@ export default defineComponent({
           const res = await RESTManager.api.topics.get<
             PaginateResult<TopicModel>
           >({
-            page,
-            size,
+            params: { page, size },
           })
 
           pagination.value = res.pagination

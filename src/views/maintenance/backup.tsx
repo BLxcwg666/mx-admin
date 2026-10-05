@@ -127,8 +127,13 @@ export default defineComponent(() => {
     }
   }
   const handleRollback = async (filename: string) => {
-    await RESTManager.api.backups.rollback(filename).patch({})
-    message.info('回滚中', { closable: true, duration: 10e8 })
+    const info = message.info('回滚中', { closable: true, duration: 10e8 })
+    try {
+      // the page reloads on the CONTENT_REFRESH event once the restore is done
+      await RESTManager.api.backups.rollback(filename).patch({ timeout: 10e8 })
+    } finally {
+      info.destroy()
+    }
   }
 
   const handleDownload = async (filename: string) => {
@@ -140,7 +145,10 @@ export default defineComponent(() => {
     info.destroy()
     message.success('下载完成')
 
-    responseBlobToFile(blob, `${filename}.zip`)
+    responseBlobToFile(
+      blob,
+      filename.endsWith('.zip') ? filename : `${filename}.zip`,
+    )
   }
 
   return () => (

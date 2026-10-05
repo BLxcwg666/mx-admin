@@ -4,5 +4,4 @@ export interface AISummaryModel {
   summary: string
   hash: string
   refId: string
-  lang: string
 }

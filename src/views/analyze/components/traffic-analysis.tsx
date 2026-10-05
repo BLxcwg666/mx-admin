@@ -39,13 +39,13 @@ export const TrafficAnalysis = defineComponent({
       try {
         const [traffic, comments] = await Promise.all([
           RESTManager.api.aggregate.stat['traffic-source'].get<TrafficSource>(),
-          RESTManager.api.aggregate.stat['comment-activity'].get<
-            CommentActivity[]
-          >(),
+          RESTManager.api.aggregate.stat['comment-activity'].get<{
+            data: CommentActivity[]
+          }>(),
         ])
 
         trafficData.value = traffic
-        commentData.value = comments
+        commentData.value = comments.data ?? []
       } catch (error) {
         console.error('Failed to fetch traffic analysis data:', error)
       } finally {

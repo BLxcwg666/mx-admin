@@ -104,7 +104,12 @@ export const ReadingRank = defineComponent({
               {
                 key: 'ref',
                 title: '文章标题',
-                render: (row: { ref: { id: string; title: string } }) => {
+                render: (row: {
+                  ref: { id: string; title: string } | null
+                }) => {
+                  // the article may have been deleted since it was read
+                  if (!row.ref) return <span>（文章已删除）</span>
+                  const ref = row.ref
                   return (
                     <NButton
                       quaternary
@@ -112,14 +117,14 @@ export const ReadingRank = defineComponent({
                       size="tiny"
                       onClick={() => {
                         RESTManager.api
-                          .helper('url-builder')(row.ref.id)
+                          .helper('url-builder')(ref.id)
                           .get<{ data: string }>()
                           .then(({ data: url }) => {
                             window.open(url)
                           })
                       }}
                     >
-                      {row.ref.title}
+                      {ref.title}
                     </NButton>
                   )
                 },

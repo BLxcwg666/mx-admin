@@ -252,16 +252,18 @@ const ManageComment = defineComponent(() => {
       title: '内容',
       key: 'text',
       render(row: any) {
+        // `ref` is missing when the commented content has been deleted
+        const ref = row.ref ?? {}
         const link = (() => {
           switch (row.refType) {
             case 'posts': {
-              return `${WEB_URL}/posts/${row.ref.category.slug}/${row.ref.slug}`
+              return `${WEB_URL}/posts/${ref.category?.slug ?? 'uncategorized'}/${ref.slug}`
             }
             case 'notes': {
-              return `${WEB_URL}/notes/${row.ref.nid}`
+              return `${WEB_URL}/notes/${ref.nid}`
             }
             case 'pages': {
-              return `${WEB_URL}/${row.ref.slug}`
+              return `${WEB_URL}/${ref.slug}`
             }
           }
         })() as string
@@ -270,16 +272,16 @@ const ManageComment = defineComponent(() => {
             <NSpace size={5}>
               <span>{relativeTimeFromNow(row.created)}</span>
               <span>于</span>
-              {row.ref.title && (
+              {ref.title && (
                 <a href={link} target="_blank" rel="noreferrer">
-                  {row.ref.title}
+                  {ref.title}
                 </a>
               )}
-              {row.ref.content && (
+              {ref.content && (
                 <NPopover>
                   {{
                     default() {
-                      return <p>{row.ref.content}</p>
+                      return <p>{ref.content}</p>
                     },
                     trigger() {
                       return (

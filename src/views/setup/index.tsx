@@ -254,6 +254,14 @@ const Step2 = defineComponent({
     const repassword = ref('')
     const message = useMessage()
     const handleNext = async () => {
+      if ((user.username?.trim().length ?? 0) < 3) {
+        message.error('登录名至少需要 3 位')
+        return
+      }
+      if ((user.password?.length ?? 0) < 6) {
+        message.error('密码至少需要 6 位')
+        return
+      }
       if (repassword.value !== user.password) {
         message.error('两次密码不一致')
         return

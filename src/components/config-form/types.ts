@@ -6,6 +6,7 @@ export type UIComponent =
   | 'switch'
   | 'select'
   | 'tags'
+  | 'action'
 
 export interface UIConfig {
   component: UIComponent
@@ -17,7 +18,13 @@ export interface UIConfig {
    * Conditionally show this field based on sibling field values.
    * When the condition is not met, the field and all its nested children are hidden.
    */
-  showWhen?: Record<string, string | string[]>
+  showWhen?: Record<
+    string,
+    string | number | boolean | Array<string | number | boolean>
+  >
+  /** For `action` fields: which client action the button runs. */
+  actionId?: string
+  actionLabel?: string
 }
 
 export interface FormField {

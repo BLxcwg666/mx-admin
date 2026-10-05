@@ -635,10 +635,10 @@ const TaskDetailContent = defineComponent({
           </NCollapse>
 
           {/* Logs */}
-          {task.logs.length > 0 && (
+          {(task.logs?.length ?? 0) > 0 && (
             <NCard title="任务日志" size="small">
               <NTimeline>
-                {task.logs.map((log, index) => (
+                {task.logs!.map((log, index) => (
                   <NTimelineItem
                     key={index}
                     type={

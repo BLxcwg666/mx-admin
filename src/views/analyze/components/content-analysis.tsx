@@ -58,20 +58,25 @@ export const ContentAnalysis = defineComponent({
       loading.value = true
       try {
         const [categories, tags, publication, articles] = await Promise.all([
-          RESTManager.api.aggregate.stat['category-distribution'].get<
-            CategoryDistribution[]
-          >(),
-          RESTManager.api.aggregate.stat['tag-cloud'].get<TagCloud[]>(),
-          RESTManager.api.aggregate.stat['publication-trend'].get<
-            PublicationTrend[]
-          >(),
-          RESTManager.api.aggregate.stat['top-articles'].get<TopArticle[]>(),
+          RESTManager.api.aggregate.stat['category-distribution'].get<{
+            data: CategoryDistribution[]
+          }>(),
+          RESTManager.api.aggregate.stat['tag-cloud'].get<{
+            data: TagCloud[]
+          }>(),
+          RESTManager.api.aggregate.stat['publication-trend'].get<{
+            data: PublicationTrend[]
+          }>(),
+          RESTManager.api.aggregate.stat['top-articles'].get<{
+            data: TopArticle[]
+          }>(),
         ])
 
-        categoryData.value = categories
-        tagData.value = tags
-        publicationData.value = publication
-        topArticles.value = articles
+        // array responses come wrapped in `{ data }`
+        categoryData.value = categories.data ?? []
+        tagData.value = tags.data ?? []
+        publicationData.value = publication.data ?? []
+        topArticles.value = articles.data ?? []
       } catch (error) {
         console.error('Failed to fetch content analysis data:', error)
       } finally {

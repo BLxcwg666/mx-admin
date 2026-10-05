@@ -113,7 +113,7 @@ export const useServerDraft = (
       if (draft?.id) {
         draftId.value = draft.id
         lastSavedVersion.value = draft.version
-        lastSavedTime.value = new Date(draft.updated)
+        lastSavedTime.value = new Date(draft.updated || draft.created)
         memoPreviousData = {
           title: draft.title,
           text: draft.text,
@@ -141,7 +141,7 @@ export const useServerDraft = (
       if (draft?.id) {
         draftId.value = draft.id
         lastSavedVersion.value = draft.version
-        lastSavedTime.value = new Date(draft.updated)
+        lastSavedTime.value = new Date(draft.updated || draft.created)
         memoPreviousData = {
           title: draft.title,
           text: draft.text,

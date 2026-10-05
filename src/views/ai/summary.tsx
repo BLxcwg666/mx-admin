@@ -75,7 +75,8 @@ const Summaries = defineComponent({
             summaries={data.value?.data || []}
             getArticle={(id) => {
               const article = data.value?.articles[id]
-              if (!article) throw new Error('article not found')
+              // the article may have been deleted after its summary was generated
+              if (!article) return null
 
               return {
                 type: article.type,
@@ -142,26 +143,17 @@ const SummaryRefIdContent = defineComponent({
                       onSubmit={(e) => {
                         e.preventDefault()
 
-                        const $form = e.target as HTMLFormElement
-                        const lang = (
-                          $form.querySelector(
-                            'input[name=lang]',
-                          ) as HTMLInputElement
-                        )?.value
-                        if (!lang) {
-                          return
-                        }
-
                         loadingRef.value = true
                         RESTManager.api.ai.summaries.generate
                           .post<AISummaryModel | null>({
                             data: {
                               refId,
-                              lang,
                             },
+                            timeout: 120e3,
                           })
                           .then((res) => {
-                            res && data.value?.summaries.push(res)
+                            // an article keeps a single summary, the new one replaces the old
+                            if (res && data.value) data.value.summaries = [res]
                             $dialog.destroy()
                           })
                           .finally(() => {
@@ -169,12 +161,10 @@ const SummaryRefIdContent = defineComponent({
                           })
                       }}
                     >
-                      <NInput
-                        type="text"
-                        inputProps={{ name: 'lang' }}
-                        defaultValue={'zh'}
-                        placeholder="目标语言"
-                      />
+                      <p>
+                        摘要语言由「设置 -
+                        AI」中的目标语言决定。重新生成会替换现有摘要。
+                      </p>
 
                       <div class={'mt-4 text-right'}>
                         <NButton
@@ -229,7 +219,7 @@ const List = defineComponent({
         (id: string) => {
           type: CollectionRefTypes
           document: { title: string }
-        }
+        } | null
       >,
       required: true,
     },
@@ -335,13 +325,16 @@ const List = defineComponent({
                 const article = props.getArticle(item.refId)
                 return (
                   <>
-                    <RouterLink to={`/${article.type}/edit?id=${item.refId}`}>
-                      <h2 data-article-id={item.refId}>
-                        {article.document.title}
-                      </h2>
-                    </RouterLink>
+                    {article ? (
+                      <RouterLink to={`/${article.type}/edit?id=${item.refId}`}>
+                        <h2 data-article-id={item.refId}>
+                          {article.document.title}
+                        </h2>
+                      </RouterLink>
+                    ) : (
+                      <h2 data-article-id={item.refId}>（文章已删除）</h2>
+                    )}
                     <small>
-                      目标语言：{item.lang} /{' '}
                       {format(new Date(item.created), 'yyyy-MM-dd HH:mm')}
                     </small>
                     <p class={'mt-2'}>{item.summary}</p>

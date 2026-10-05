@@ -37,13 +37,13 @@ interface AIProviderConfig {
 
 interface AIModelAssignment {
   providerId?: string
-  model?: string
+  model?: string | null
 }
 
 interface AIConfig {
   providers: AIProviderConfig[]
-  summaryModel?: AIModelAssignment
-  commentReviewModel?: AIModelAssignment
+  summaryModel?: AIModelAssignment | null
+  commentReviewModel?: AIModelAssignment | null
   enableSummary: boolean
   enableAutoGenerateSummary: boolean
   aiSummaryTargetLanguage: string
@@ -362,7 +362,7 @@ const AIModelAssignmentSelect = defineComponent({
     label: { type: String, required: true },
     description: { type: String },
     assignment: {
-      type: Object as PropType<AIModelAssignment | undefined>,
+      type: Object as PropType<AIModelAssignment | null | undefined>,
     },
     providers: {
       type: Array as PropType<AIProviderConfig[]>,
@@ -374,7 +374,7 @@ const AIModelAssignmentSelect = defineComponent({
     },
     onUpdate: {
       type: Function as PropType<
-        (assignment: AIModelAssignment | undefined) => void
+        (assignment: AIModelAssignment | null) => void
       >,
       required: true,
     },
@@ -441,13 +441,15 @@ const AIModelAssignmentSelect = defineComponent({
       emitUpdate()
     }
 
+    // Cleared values are sent as `null`: `undefined` is dropped from the JSON
+    // body and the server merges the patch, so the old value would stay.
     const emitUpdate = () => {
       if (!selectedProviderId.value) {
-        props.onUpdate(undefined)
+        props.onUpdate(null)
       } else {
         props.onUpdate({
           providerId: selectedProviderId.value,
-          model: selectedModel.value || undefined,
+          model: selectedModel.value || null,
         })
       }
     }
@@ -544,9 +546,11 @@ export const AIConfigSection = defineComponent({
     // Fetch all models for enabled providers
     const fetchAllModels = async () => {
       try {
-        const response =
-          await RESTManager.api.ai.models.get<ProviderModelsResponse[]>()
-        for (const providerData of response) {
+        // array responses come wrapped in `{ data }`
+        const response = await RESTManager.api.ai.models.get<{
+          data: ProviderModelsResponse[]
+        }>()
+        for (const providerData of response.data ?? []) {
           if (providerData.models) {
             providerModels.value[providerData.providerId] = providerData.models
           }

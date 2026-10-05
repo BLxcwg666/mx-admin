@@ -125,7 +125,9 @@ export const DraftListModal = defineComponent({
                           v{draft.version} · {formatWordCount(draft.text)} 字
                         </p>
                         <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                          {new Date(draft.updated).toLocaleString()}
+                          {new Date(
+                            draft.updated || draft.created,
+                          ).toLocaleString()}
                         </p>
                       </div>
                     </div>

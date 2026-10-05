@@ -441,6 +441,7 @@ const NoteWriteView = defineComponent(() => {
 
         <NFormItem label="专栏">
           <NSelect
+            clearable
             options={topics.value.map((topic) => ({
               label: topic.name,
               value: topic.id!,

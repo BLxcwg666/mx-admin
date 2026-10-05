@@ -740,7 +740,7 @@ const AppIF = defineComponent({
                   onClick={() => {
                     openUpdateModal({
                       version: versionMap.value.system,
-                      repo: 'mx-server',
+                      repo: 'mx-core-go',
                       title: '[系统] 更新详情',
                     })
                   }}

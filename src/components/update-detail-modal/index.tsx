@@ -19,7 +19,7 @@ export const UpdateDetailModal = defineComponent({
     show: Boolean,
     version: String,
     repo: {
-      type: String as () => 'mx-server' | 'mx-admin',
+      type: String as () => 'mx-core-go' | 'mx-admin',
       required: true,
     },
     title: String,
@@ -177,12 +177,12 @@ export const UpdateDetailModal = defineComponent({
 export const useUpdateDetailModal = () => {
   const showModal = ref(false)
   const version = ref('')
-  const repo = ref<'mx-server' | 'mx-admin'>('mx-server')
+  const repo = ref<'mx-core-go' | 'mx-admin'>('mx-core-go')
   const title = ref('')
 
   const openModal = (params: {
     version: string
-    repo: 'mx-server' | 'mx-admin'
+    repo: 'mx-core-go' | 'mx-admin'
     title?: string
   }) => {
     version.value = params.version

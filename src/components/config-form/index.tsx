@@ -20,6 +20,8 @@ import { useStoreRef } from '~/hooks/use-store-ref'
 import { UIStore } from '~/stores/ui'
 import { uuid } from '~/utils'
 
+import { ConfigAction } from './actions'
+
 export * from './types'
 
 const NFormPrefixCls = 'mt-6'
@@ -384,6 +386,9 @@ const FormFieldItem = defineComponent({
               onUpdateValue={handleUserInput}
             />
           )
+
+        case 'action':
+          return <ConfigAction actionId={ui.actionId} label={ui.actionLabel} />
 
         default:
           return null

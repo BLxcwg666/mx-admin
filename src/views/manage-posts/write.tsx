@@ -140,6 +140,8 @@ const PostWriteView = defineComponent(() => {
       ? payload.data.related
       : []
     payload.data.relatedId = related.map((r: any) => r.id)
+    // the API returns the pinned date (or null); the editor works with a boolean
+    payload.data.pin = !!payload.data.pin
     postListState.append(related)
     parsePayloadIntoReactiveData(payload.data as PostModel)
   }

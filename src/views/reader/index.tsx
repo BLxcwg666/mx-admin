@@ -1,4 +1,4 @@
-import { NList, NListItem } from 'naive-ui'
+import { NList, NListItem, NPagination, NSpace } from 'naive-ui'
 import useSWRV from 'swrv'
 
 import { GithubIcon, MingcuteUserStarFill } from '~/components/icons'
@@ -17,8 +17,14 @@ type ReaderModel = {
 
 const ReaderView = defineComponent({
   setup() {
-    const { data } = useSWRV('reader', () =>
-      RESTManager.api.readers.get<{ data: ReaderModel[] }>(),
+    const page = ref(1)
+    const { data } = useSWRV(
+      () => `reader-${page.value}`,
+      () =>
+        RESTManager.api.readers.get<{
+          data: ReaderModel[]
+          pagination: { currentPage: number; totalPage: number }
+        }>({ params: { page: page.value, size: 50 } }),
     )
     return () => (
       <ContentLayout>
@@ -61,6 +67,15 @@ const ReaderView = defineComponent({
             </NListItem>
           ))}
         </NList>
+        {(data.value?.pagination?.totalPage ?? 1) > 1 && (
+          <NSpace class={'mt-6'} justify="end">
+            <NPagination
+              page={page.value}
+              pageCount={data.value?.pagination.totalPage}
+              onUpdatePage={(p) => void (page.value = p)}
+            />
+          </NSpace>
+        )}
       </ContentLayout>
     )
   },
