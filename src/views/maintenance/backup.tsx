@@ -13,6 +13,17 @@ import { useDataTableFetch } from '~/hooks/use-table'
 import { ContentLayout } from '~/layouts/content'
 import { responseBlobToFile, RESTManager } from '~/utils'
 
+interface BackupResult {
+  filename: string
+  size: string
+  s3: {
+    status: 'uploaded' | 'failed' | 'skipped'
+    key?: string
+    url?: string
+    error?: string
+  }
+}
+
 export default defineComponent(() => {
   const { checkedRowKeys, data, fetchDataFn, loading } = useDataTableFetch<{
     filename: string
@@ -32,13 +43,35 @@ export default defineComponent(() => {
   const handleBackup = async () => {
     const info = message.info('备份中', { duration: 10e8, closable: true })
 
-    const blob = await RESTManager.api.backups.new.get({
+    let result: BackupResult
+    try {
+      result = (await RESTManager.api.backups.new.post({
+        timeout: 10e8,
+      })) as any
+    } finally {
+      info.destroy()
+    }
+
+    switch (result.s3.status) {
+      case 'uploaded':
+        message.success(`备份完成，已上传到 S3：${result.s3.key}`)
+        break
+      case 'failed':
+        message.error(
+          `备份已保存到服务器，但上传 S3 失败：${result.s3.error}`,
+          { duration: 10e8, closable: true },
+        )
+        break
+      default:
+        message.success('备份完成（未开启备份上传，仅保存在服务器）')
+    }
+    fetchDataFn()
+
+    const blob = await RESTManager.api.backups(result.filename).get({
       responseType: 'blob',
       timeout: 10e8,
     })
-    info.destroy()
-    message.success('备份完成')
-    responseBlobToFile(blob, 'backup.zip')
+    responseBlobToFile(blob, result.filename)
   }
   const handleUploadAndRestore = async () => {
     const $file = document.createElement('input')
