@@ -11,6 +11,7 @@ import {
   NLayoutContent,
   NList,
   NListItem,
+  NPagination,
   NPopconfirm,
   NSpace,
   NSwitch,
@@ -338,14 +339,17 @@ const WebHookDispatches = defineComponent({
   },
 
   setup(props) {
-    const { data } = useSWRV(`webhook.events${props.hookId}`, async () => {
-      return await RESTManager.api
-        .webhooks(props.hookId)
-        .get<PaginateResult<WebhookEventModel>>({
-          params: { page: 1, size: 20 },
-        })
-        .then((d) => d.data)
-    })
+    const page = ref(1)
+    const { data } = useSWRV(
+      () => `webhook.events${props.hookId}.${page.value}`,
+      async () => {
+        return await RESTManager.api
+          .webhooks(props.hookId)
+          .get<PaginateResult<WebhookEventModel>>({
+            params: { page: page.value, size: 10 },
+          })
+      },
+    )
 
     const dialog = useDialog()
 
@@ -399,8 +403,8 @@ const WebHookDispatches = defineComponent({
 
     return () => (
       <div>
-        <NList>
-          {data.value?.map((item) => {
+        <NList class={'max-h-[60vh] overflow-auto'}>
+          {data.value?.data.map((item) => {
             return (
               <NListItem key={item.id}>
                 <div class={'flex items-center space-x-4'}>
@@ -441,6 +445,18 @@ const WebHookDispatches = defineComponent({
             )
           })}
         </NList>
+
+        {data.value && data.value.pagination.totalPage > 1 && (
+          <div class={'mt-4 flex justify-end'}>
+            <NPagination
+              page={page.value}
+              pageCount={data.value.pagination.totalPage}
+              onUpdatePage={(p) => {
+                page.value = p
+              }}
+            />
+          </div>
+        )}
       </div>
     )
   },
