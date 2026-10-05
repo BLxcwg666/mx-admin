@@ -46,8 +46,13 @@ export module MxServerOptions {
   }
 
   export interface BackupOptionsOption {
+    /** run the daily automatic backup */
+    autoBackup: boolean
+    /** upload every backup to S3 */
     enable: boolean
     path: string
+    /** local backups to keep, 0 = unlimited */
+    keepCount: number
   }
 
   export interface ImageBedOptionsOption {
